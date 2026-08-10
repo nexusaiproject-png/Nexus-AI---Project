@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from app.agent_errors import ToolExecutionError
 from app.tools import ToolRegistry
 
 
@@ -15,7 +16,18 @@ class ToolCall:
 class AgentStepResult:
     call_id: str
     name: str
-    result: Any
+    result: Any = None
+    error: ToolExecutionError | None = None
+
+    def as_message(self) -> dict[str, Any]:
+        if self.error is not None:
+            return self.error.as_message()
+        return {
+            "role": "tool",
+            "tool_call_id": self.call_id,
+            "name": self.name,
+            "content": self.result,
+        }
 
 
 class ModelAdapter(Protocol):
@@ -48,15 +60,7 @@ class AgentLoop:
                 ],
             })
             results = await self._execute_calls(calls, subject_id)
-            history.extend(
-                {
-                    "role": "tool",
-                    "tool_call_id": result.call_id,
-                    "name": result.name,
-                    "content": result.result,
-                }
-                for result in results
-            )
+            history.extend(result.as_message() for result in results)
         return "Agent stopped after reaching the maximum tool steps.", history
 
     def _tool_schemas(self) -> list[dict[str, Any]]:
@@ -66,9 +70,26 @@ class AgentLoop:
         import asyncio
 
         results = await asyncio.gather(
-            *(self.tools.execute(call.name, call.arguments, subject_id=subject_id) for call in calls)
+            *(self.tools.execute(call.name, call.arguments, subject_id=subject_id) for call in calls),
+            return_exceptions=True,
         )
-        return [
-            AgentStepResult(call_id=call.call_id, name=call.name, result=result)
-            for call, result in zip(calls, results, strict=True)
-        ]
+        step_results: list[AgentStepResult] = []
+        for call, result in zip(calls, results, strict=True):
+            if isinstance(result, BaseException):
+                step_results.append(
+                    AgentStepResult(
+                        call_id=call.call_id,
+                        name=call.name,
+                        error=ToolExecutionError(
+                            call_id=call.call_id,
+                            name=call.name,
+                            error_type=type(result).__name__,
+                            message=str(result),
+                        ),
+                    )
+                )
+            else:
+                step_results.append(
+                    AgentStepResult(call_id=call.call_id, name=call.name, result=result)
+                )
+        return step_results
