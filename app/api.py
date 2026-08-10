@@ -1,7 +1,6 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Request
 
 from app.models import ToolExecutionRequest, ToolExecutionResponse
-from app.permissions import PermissionDeniedError
 
 router = APIRouter(prefix="/tools", tags=["tools"])
 
@@ -17,14 +16,9 @@ async def execute_tool(
     payload: ToolExecutionRequest,
     request: Request,
 ) -> ToolExecutionResponse:
-    try:
-        result = await request.app.state.container.tools.execute(
-            tool_name,
-            payload.arguments,
-            subject_id=payload.subject_id,
-        )
-    except PermissionDeniedError:
-        raise
-    except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    result = await request.app.state.container.tools.execute(
+        tool_name,
+        payload.arguments,
+        subject_id=payload.subject_id,
+    )
     return ToolExecutionResponse(result=result)
