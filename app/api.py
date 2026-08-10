@@ -1,5 +1,3 @@
-from typing import Any
-
 from fastapi import APIRouter, HTTPException, Request
 
 from app.models import ToolExecutionRequest, ToolExecutionResponse
@@ -25,8 +23,8 @@ async def execute_tool(
             payload.arguments,
             subject_id=payload.subject_id,
         )
-    except PermissionDeniedError as exc:
-        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except PermissionDeniedError:
+        raise
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return ToolExecutionResponse(result=result)
