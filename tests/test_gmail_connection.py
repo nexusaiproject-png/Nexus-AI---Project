@@ -1,11 +1,20 @@
 import pytest
 
 from app.integrations.gmail_connection import GmailConnection
+from app.integrations.gmail_factory import GmailClientFactory
 from app.integrations.oauth import InMemoryTokenStore, OAuthToken
 
 
 class FakeClient:
     async def list_messages(self, max_results=20, query=None):
+        return {"max_results": max_results, "query": query}
+
+    async def get_message(self, message_id):
+        return {"id": message_id}
+
+
+class FakeTransport:
+    async def list_messages(self, max_results, query):
         return {"max_results": max_results, "query": query}
 
     async def get_message(self, message_id):
@@ -30,10 +39,12 @@ async def test_missing_gmail_account_is_explicit() -> None:
 
 
 @pytest.mark.asyncio
-async def test_connected_account_without_transport_is_explicit() -> None:
+async def test_connected_account_builds_client_from_token() -> None:
     store = InMemoryTokenStore()
     await store.set("account-1", OAuthToken(access_token="token"))
-    connection = GmailConnection(store)
+    factory = GmailClientFactory(lambda account_id, access_token: FakeTransport())
+    connection = GmailConnection(store, client_factory=factory)
 
-    with pytest.raises(NotImplementedError, match="transport"):
-        await connection.client_for("account-1")
+    client = await connection.client_for("account-1")
+    assert await client.get_message("message-1") == {"id": "message-1"}
+    assert await connection.client_for("account-1") is client
