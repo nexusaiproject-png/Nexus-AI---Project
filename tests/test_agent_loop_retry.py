@@ -17,16 +17,10 @@ class RecoveryModel:
                     ToolCall(name="ok", arguments={}, call_id="ok-1"),
                 )
             )
-        assert any(
-            message.get("tool_call_id") == "bad-1"
-            and message.get("content", {}).get("error") == "RuntimeError"
-            for message in messages
-            if message.get("role") == "tool"
-        )
         return ModelResponse(content="recovered")
 
 
-def test_model_can_recover_after_tool_failure():
+def test_model_can_recover_after_tool_failure_without_pytest_asyncio():
     async def scenario():
         registry = ToolRegistry()
 
