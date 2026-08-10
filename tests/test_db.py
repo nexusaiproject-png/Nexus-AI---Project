@@ -1,16 +1,17 @@
 import asyncio
 
-from app.db import Database
+from sqlalchemy import text
+
+from app.db import engine, init_db
 
 
-def test_database_creates_schema(tmp_path):
+def test_database_creates_schema():
     async def scenario():
-        database = Database(tmp_path / "nexus.db")
-        database.initialize()
-        with database.connect() as connection:
-            row = connection.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
-            ).fetchone()
-            return row is not None
+        await init_db()
+        async with engine.connect() as connection:
+            result = await connection.execute(
+                text("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'")
+            )
+            return result.scalar_one_or_none()
 
-    assert asyncio.run(scenario())
+    assert asyncio.run(scenario()) == "schema_version"
