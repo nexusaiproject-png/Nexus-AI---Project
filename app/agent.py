@@ -2,6 +2,7 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from app.agent_errors import ToolExecutionError
 from app.tools import ToolRegistry
 
 
@@ -30,7 +31,18 @@ class AgentModel(Protocol):
 class ToolResult:
     call_id: str | None
     name: str
-    result: Any
+    result: Any = None
+    error: ToolExecutionError | None = None
+
+    def as_message(self) -> dict[str, Any]:
+        if self.error is not None:
+            return self.error.as_message()
+        return {
+            "role": "tool",
+            "tool_call_id": self.call_id,
+            "tool_name": self.name,
+            "content": self.result,
+        }
 
 
 @dataclass
@@ -85,20 +97,27 @@ class Agent:
                         subject_id=subject_id,
                     )
                     for call in response.tool_calls
-                )
+                ),
+                return_exceptions=True,
             )
 
             for call, result in zip(response.tool_calls, results, strict=True):
-                tool_result = ToolResult(call.call_id, call.name, result)
+                if isinstance(result, BaseException):
+                    tool_result = ToolResult(
+                        call_id=call.call_id,
+                        name=call.name,
+                        error=ToolExecutionError(
+                            call_id=call.call_id or "",
+                            name=call.name,
+                            error_type=type(result).__name__,
+                            message=str(result),
+                        ),
+                    )
+                else:
+                    tool_result = ToolResult(call.call_id, call.name, result=result)
+
                 state.tool_results.append(tool_result)
-                state.messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": call.call_id,
-                        "tool_name": call.name,
-                        "content": result,
-                    }
-                )
+                state.messages.append(tool_result.as_message())
 
         state.messages.append(
             {"role": "assistant", "content": "Agent stopped after reaching the maximum steps."}
