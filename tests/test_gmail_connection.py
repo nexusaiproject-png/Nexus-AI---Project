@@ -2,6 +2,7 @@ import pytest
 
 from app.integrations.gmail_connection import GmailConnection
 from app.integrations.gmail_factory import GmailClientFactory
+from app.integrations.gmail_transport import UnconfiguredGmailTransport
 from app.integrations.oauth import InMemoryTokenStore, OAuthToken
 
 
@@ -48,3 +49,16 @@ async def test_connected_account_builds_client_from_token() -> None:
     client = await connection.client_for("account-1")
     assert await client.get_message("message-1") == {"id": "message-1"}
     assert await connection.client_for("account-1") is client
+
+
+@pytest.mark.asyncio
+async def test_default_connection_uses_explicit_unconfigured_transport() -> None:
+    store = InMemoryTokenStore()
+    await store.set("account-1", OAuthToken(access_token="token"))
+    connection = GmailConnection(store)
+
+    client = await connection.client_for("account-1")
+    assert isinstance(client, UnconfiguredGmailTransport)
+
+    with pytest.raises(NotImplementedError, match="not configured"):
+        await client.get_message("message-1")
