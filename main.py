@@ -1,8 +1,16 @@
 from contextlib import asynccontextmanager
+from typing import Any
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from app.container import AppContainer, build_container
+from app.permissions import PermissionDeniedError
+
+
+class ToolExecutionRequest(BaseModel):
+    subject_id: str = Field(min_length=1)
+    arguments: dict[str, Any] = Field(default_factory=dict)
 
 
 @asynccontextmanager
@@ -43,3 +51,23 @@ async def health() -> dict[str, str]:
 async def tools(request: Request) -> dict[str, list[str]]:
     container = get_container(request)
     return {"tools": list(container.tools.names())}
+
+
+@app.post("/tools/{tool_name:path}/execute", tags=["tools"])
+async def execute_tool(
+    tool_name: str,
+    payload: ToolExecutionRequest,
+    request: Request,
+) -> dict[str, Any]:
+    container = get_container(request)
+    try:
+        result = await container.tools.execute(
+            tool_name,
+            payload.arguments,
+            subject_id=payload.subject_id,
+        )
+    except PermissionDeniedError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"result": result}
