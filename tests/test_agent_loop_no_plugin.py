@@ -1,24 +1,7 @@
 import asyncio
 
-from app.agent_loop import AgentLoop
+from app.agent import Agent, ModelResponse, ToolCall
 from app.tools import ToolDefinition, ToolRegistry
-
-
-class RecoveryModel:
-    def __init__(self):
-        self.calls = 0
-
-    async def complete(self, messages, tools):
-        self.calls += 1
-        if self.calls == 1:
-            return type("Response", (), {
-                "content": None,
-                "tool_calls": [
-                    type("Call", (), {"call_id": "bad-1", "name": "bad", "arguments": {}})(),
-                    type("Call", (), {"call_id": "ok-1", "name": "ok", "arguments": {}})(),
-                ],
-            })()
-        return type("Response", (), {"content": "recovered", "tool_calls": []})()
 
 
 def test_model_can_recover_after_tool_failure_without_pytest_asyncio():
@@ -34,12 +17,24 @@ def test_model_can_recover_after_tool_failure_without_pytest_asyncio():
         registry.register(ToolDefinition("bad", "bad", bad))
         registry.register(ToolDefinition("ok", "ok", ok))
 
+        class RecoveryModel:
+            def __init__(self):
+                self.calls = 0
+
+            async def complete(self, messages, tools):
+                self.calls += 1
+                if self.calls == 1:
+                    return ModelResponse(tool_calls=(
+                        ToolCall("bad", {}, "bad-1"),
+                        ToolCall("ok", {}, "ok-1"),
+                    ))
+                return ModelResponse(content="recovered")
+
         model = RecoveryModel()
-        agent = AgentLoop(model, registry, max_steps=2)
-        return await agent.run([], "user-1")
+        state = await Agent(model, registry, max_steps=2).run("test", "user-1")
+        return state
 
-    content, history = asyncio.run(scenario())
-
-    assert content == "recovered"
-    assert any(message.get("tool_call_id") == "bad-1" for message in history)
-    assert any(message.get("tool_call_id") == "ok-1" for message in history)
+    state = asyncio.run(scenario())
+    assert state.messages[-1] == {"role": "assistant", "content": "recovered"}
+    assert any(result.call_id == "bad-1" and result.error is not None for result in state.tool_results)
+    assert any(result.call_id == "ok-1" and result.error is None for result in state.tool_results)
