@@ -20,6 +20,11 @@ class FakeConnection:
         return FakeClient()
 
 
+class FakeContainer:
+    def __init__(self, tools):
+        self.tools = tools
+
+
 @pytest.fixture
 def client():
     with TestClient(app) as test_client:
@@ -37,9 +42,10 @@ def test_tool_router_lists_tools(client: TestClient) -> None:
 
 def test_tool_router_returns_403_for_denied_tool(client: TestClient) -> None:
     factory = GmailToolFactory(FakeConnection())
-    app.state.container.tools = build_gmail_registry(
+    denied_registry = build_gmail_registry(
         factory, AllowListPermissionChecker(frozenset())
     )
+    app.state.container = FakeContainer(denied_registry)
 
     response = client.post(
         "/tools/gmail.list_messages/execute",
