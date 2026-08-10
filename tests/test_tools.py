@@ -1,7 +1,12 @@
 import pytest
 
 from app.permissions import AllowListPermissionChecker, PermissionDeniedError
-from app.tools import ToolDefinition, ToolRegistry
+from app.tools import ToolArgumentError, ToolDefinition, ToolRegistry
+from pydantic import BaseModel, Field
+
+
+class EchoArguments(BaseModel):
+    value: str = Field(min_length=1)
 
 
 @pytest.mark.asyncio
@@ -15,6 +20,25 @@ async def test_registry_registers_lists_and_executes_tool() -> None:
 
     assert registry.names() == ("echo",)
     assert await registry.execute("echo", {"value": "hello"}) == {"echo": "hello"}
+
+
+@pytest.mark.asyncio
+async def test_registry_validates_typed_arguments_before_handler() -> None:
+    calls: list[dict[str, object]] = []
+
+    async def handler(arguments: dict[str, object]) -> dict[str, object]:
+        calls.append(arguments)
+        return {"echo": arguments["value"]}
+
+    registry = ToolRegistry()
+    registry.register(ToolDefinition("echo", "Echo", handler, EchoArguments))
+
+    assert await registry.execute("echo", {"value": "hello"}) == {"echo": "hello"}
+
+    with pytest.raises(ToolArgumentError, match="value"):
+        await registry.execute("echo", {"value": ""})
+
+    assert calls == [{"value": "hello"}]
 
 
 @pytest.mark.asyncio
