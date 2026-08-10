@@ -1,10 +1,16 @@
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
+from pydantic import BaseModel, ValidationError
+
 from app.permissions import PermissionChecker, PermissionDeniedError
 
 
 ToolHandler = Callable[[dict[str, Any]], Awaitable[Any]]
+
+
+class ToolArgumentError(ValueError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -12,6 +18,7 @@ class ToolDefinition:
     name: str
     description: str
     handler: ToolHandler
+    arguments_model: type[BaseModel] | None = None
 
 
 class ToolRegistry:
@@ -46,4 +53,12 @@ class ToolRegistry:
                 raise PermissionDeniedError("subject_id is required for permission checks")
             if not await self._permission_checker.allowed(name, subject_id):
                 raise PermissionDeniedError(f"permission denied: {name}")
-        return await self.get(name).handler(arguments)
+
+        tool = self.get(name)
+        if tool.arguments_model is not None:
+            try:
+                arguments = tool.arguments_model.model_validate(arguments).model_dump()
+            except ValidationError as exc:
+                raise ToolArgumentError(str(exc)) from exc
+
+        return await tool.handler(arguments)
