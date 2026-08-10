@@ -2,15 +2,10 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel, Field
 
 from app.container import AppContainer, build_container
+from app.models import ToolExecutionRequest, ToolExecutionResponse
 from app.permissions import PermissionDeniedError
-
-
-class ToolExecutionRequest(BaseModel):
-    subject_id: str = Field(min_length=1)
-    arguments: dict[str, Any] = Field(default_factory=dict)
 
 
 @asynccontextmanager
@@ -53,12 +48,12 @@ async def tools(request: Request) -> dict[str, list[str]]:
     return {"tools": list(container.tools.names())}
 
 
-@app.post("/tools/{tool_name:path}/execute", tags=["tools"])
+@app.post("/tools/{tool_name:path}/execute", response_model=ToolExecutionResponse, tags=["tools"])
 async def execute_tool(
     tool_name: str,
     payload: ToolExecutionRequest,
     request: Request,
-) -> dict[str, Any]:
+) -> ToolExecutionResponse:
     container = get_container(request)
     try:
         result = await container.tools.execute(
@@ -70,4 +65,4 @@ async def execute_tool(
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"result": result}
+    return ToolExecutionResponse(result=result)
