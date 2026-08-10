@@ -30,4 +30,6 @@ async def execute_tool(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"tool execution failed: {exc}") from exc
     return ToolExecutionResponse(result=result)
