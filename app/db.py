@@ -3,13 +3,11 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import get_settings
+from app.db_models import Base
 
 settings = get_settings()
 
-engine = create_async_engine(
-    settings.database_url,
-    future=True,
-)
+engine = create_async_engine(settings.database_url, future=True)
 
 SessionLocal = async_sessionmaker(
     bind=engine,
@@ -19,8 +17,6 @@ SessionLocal = async_sessionmaker(
 
 
 async def init_db() -> None:
-    from app.models import Base
-
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
 
