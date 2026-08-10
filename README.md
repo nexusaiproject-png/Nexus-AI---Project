@@ -6,9 +6,10 @@ Nexus is an AI Workspace / Digital Employee platform. The backend is designed to
 
 The repository currently contains the minimal FastAPI foundation required for cloud development:
 
-- FastAPI application
-- Health endpoint
-- Basic API endpoints
+- FastAPI application in `main.py`
+- `GET /`
+- `GET /hello`
+- `GET /health`
 - Pytest tests
 - Environment template
 - Python dependency list
@@ -19,7 +20,7 @@ The repository currently contains the minimal FastAPI foundation required for cl
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+uvicorn main:app --reload
 ```
 
 Open `http://127.0.0.1:8000/docs` for the FastAPI documentation.
@@ -27,7 +28,7 @@ Open `http://127.0.0.1:8000/docs` for the FastAPI documentation.
 ## Test
 
 ```bash
-pytest
+pytest -q
 ```
 
 ## Project direction
