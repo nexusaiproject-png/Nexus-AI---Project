@@ -1,6 +1,8 @@
 import pytest
 
 from app.gmail_tools import GmailToolFactory
+from app.integrations.gmail_connection import GmailConnection
+from app.integrations.oauth import InMemoryTokenStore
 
 
 class FakeClient:
@@ -41,6 +43,19 @@ async def test_list_messages_maps_tool_arguments() -> None:
 @pytest.mark.asyncio
 async def test_get_message_maps_tool_arguments() -> None:
     factory = GmailToolFactory(FakeConnection())
+
+    result = await factory.get_message(
+        {"account_id": "account-1", "message_id": "msg-123"}
+    )
+
+    assert result == {"message_id": "msg-123"}
+
+
+@pytest.mark.asyncio
+async def test_gmail_tool_factory_works_with_real_connection_registration() -> None:
+    connection = GmailConnection(InMemoryTokenStore())
+    connection.register_client("account-1", FakeClient())
+    factory = GmailToolFactory(connection)
 
     result = await factory.get_message(
         {"account_id": "account-1", "message_id": "msg-123"}
