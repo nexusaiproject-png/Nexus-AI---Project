@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
+from app.permissions import PermissionChecker, PermissionDeniedError
+
 
 ToolHandler = Callable[[dict[str, Any]], Awaitable[Any]]
 
@@ -13,8 +15,9 @@ class ToolDefinition:
 
 
 class ToolRegistry:
-    def __init__(self) -> None:
+    def __init__(self, permission_checker: PermissionChecker | None = None) -> None:
         self._tools: dict[str, ToolDefinition] = {}
+        self._permission_checker = permission_checker
 
     def register(self, tool: ToolDefinition) -> None:
         if not tool.name.strip():
@@ -32,5 +35,15 @@ class ToolRegistry:
     def names(self) -> tuple[str, ...]:
         return tuple(sorted(self._tools))
 
-    async def execute(self, name: str, arguments: dict[str, Any]) -> Any:
+    async def execute(
+        self,
+        name: str,
+        arguments: dict[str, Any],
+        subject_id: str | None = None,
+    ) -> Any:
+        if self._permission_checker is not None:
+            if subject_id is None:
+                raise PermissionDeniedError("subject_id is required for permission checks")
+            if not await self._permission_checker.allowed(name, subject_id):
+                raise PermissionDeniedError(f"permission denied: {name}")
         return await self.get(name).handler(arguments)
