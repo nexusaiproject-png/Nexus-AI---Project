@@ -1,4 +1,4 @@
-import pytest
+import asyncio
 
 from app.agent import Agent, ModelResponse, ToolCall
 from app.permissions import AllowListPermissionChecker
@@ -37,9 +37,11 @@ def registry() -> ToolRegistry:
     return tools
 
 
-@pytest.mark.asyncio
-async def test_agent_executes_all_tool_calls_from_one_model_response():
-    result = await Agent(FakeModel(), registry()).run("do both", "user-1")
+def test_agent_executes_all_tool_calls_from_one_model_response():
+    async def scenario():
+        return await Agent(FakeModel(), registry()).run("do both", "user-1")
+
+    result = asyncio.run(scenario())
 
     assert [item.name for item in result.tool_results] == ["test.first", "test.second"]
     assert result.tool_results[0].result == {"value": 1, "name": "first"}
