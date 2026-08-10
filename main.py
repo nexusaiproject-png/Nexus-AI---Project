@@ -4,6 +4,8 @@ from fastapi import FastAPI
 
 from app.api import router as tools_router
 from app.container import build_container
+from app.errors import permission_denied_handler
+from app.permissions import PermissionDeniedError
 
 
 @asynccontextmanager
@@ -19,7 +21,7 @@ app = FastAPI(
     description="Backend foundation for the Nexus AI Workspace platform.",
     lifespan=lifespan,
 )
-
+app.add_exception_handler(PermissionDeniedError, permission_denied_handler)
 app.include_router(tools_router)
 
 
