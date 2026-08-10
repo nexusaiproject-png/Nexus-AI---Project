@@ -1,6 +1,8 @@
+import asyncio
+
 import pytest
 
-from app.permissions import AllowListPermissionChecker
+from app.permissions import AllowListPermissionChecker, PermissionDeniedError
 from app.tools import ToolDefinition, ToolRegistry
 
 
@@ -40,7 +42,7 @@ def build_registry() -> ToolRegistry:
 async def test_registry_executes_multiple_independent_tool_calls() -> None:
     registry = build_registry()
 
-    first, second = await pytest.asyncio.gather(
+    first, second = await asyncio.gather(
         registry.execute("test.first", {"value": 1}, subject_id="user-1"),
         registry.execute("test.second", {"value": 2}, subject_id="user-1"),
     )
@@ -53,5 +55,5 @@ async def test_registry_executes_multiple_independent_tool_calls() -> None:
 async def test_registry_does_not_allow_unapproved_tool_call() -> None:
     registry = build_registry()
 
-    with pytest.raises(Exception, match="permission denied: test.unknown"):
+    with pytest.raises(PermissionDeniedError, match="permission denied: test.unknown"):
         await registry.execute("test.unknown", {}, subject_id="user-1")
