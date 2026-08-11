@@ -90,7 +90,7 @@ class DeveloperToolFactory:
         return await self._workspace.create_issue(r.owner, r.name, a["title"], a.get("body"))
 
     async def create_branch(self, a: dict[str, Any]) -> Any:
-        r = self._repo
+        r = self._repo(a)
         return await self._workspace.create_branch(r.owner, r.name, a["branch"], a["base"])
 
     async def update_file(self, a: dict[str, Any]) -> Any:
