@@ -2,7 +2,7 @@ import pytest
 
 from app.integrations.calendar_client import CalendarClientAdapter
 from app.integrations.calendar_connection import CalendarConnection
-from app.integrations.oauth import InMemoryTokenStore, TokenRecord
+from app.integrations.oauth import InMemoryTokenStore, OAuthToken
 
 
 class FakeTransport:
@@ -28,7 +28,7 @@ class FakeFactory:
 @pytest.mark.asyncio
 async def test_calendar_connection_uses_token_store():
     store = InMemoryTokenStore()
-    await store.set("account-1", TokenRecord("token", "Bearer"))
+    await store.set("account-1", OAuthToken("token"))
     connection = CalendarConnection(store, FakeFactory())
     client = await connection.client_for("account-1")
     assert isinstance(client, CalendarClientAdapter)
