@@ -10,6 +10,17 @@ def test_container_builds_single_tool_registry() -> None:
         "calendar.get_event",
         "calendar.list_events",
         "calendar.update_event",
+        "developer.create_branch",
+        "developer.create_issue",
+        "developer.get_issue",
+        "developer.get_pull_request",
+        "developer.get_repository",
+        "developer.list_branches",
+        "developer.list_commits",
+        "developer.list_issues",
+        "developer.list_pull_requests",
+        "developer.read_file",
+        "developer.update_file",
         "files.create_file",
         "files.delete_file",
         "files.list_files",
@@ -30,3 +41,4 @@ def test_container_builds_single_tool_registry() -> None:
         "tasks.update_task",
     )
     assert container.meetings is not None
+    assert container.developer_agent is not None
