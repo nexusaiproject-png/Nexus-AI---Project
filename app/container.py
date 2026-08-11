@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from app.automation import AutomationRunner, AutomationStore
 from app.calendar_tools import CalendarToolFactory
 from app.files import FileStore, FileToolFactory
 from app.gmail_tools import GmailToolFactory
@@ -14,6 +15,8 @@ from app.tools import ToolRegistry
 @dataclass(frozen=True)
 class AppContainer:
     tools: ToolRegistry
+    automations: AutomationStore
+    automation_runner: AutomationRunner
 
 
 def build_container() -> AppContainer:
@@ -58,4 +61,10 @@ def build_container() -> AppContainer:
         *file_factory.definitions(),
     ):
         registry.register(tool)
-    return AppContainer(tools=registry)
+
+    automations = AutomationStore()
+    return AppContainer(
+        tools=registry,
+        automations=automations,
+        automation_runner=AutomationRunner(automations, registry),
+    )
