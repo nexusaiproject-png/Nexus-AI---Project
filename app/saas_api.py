@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, EmailStr, Field
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field
 
 from app.saas import Plan, Role, SaaSStore, TenantAccessError
 
@@ -7,7 +7,7 @@ router = APIRouter(prefix="/saas", tags=["saas"])
 
 
 class UserCreate(BaseModel):
-    email: EmailStr
+    email: str = Field(min_length=3, max_length=320)
 
 
 class WorkspaceCreate(BaseModel):
@@ -28,23 +28,23 @@ class PlanUpdate(BaseModel):
 
 class UsageUpdate(BaseModel):
     user_id: str = Field(min_length=1)
-    ai_requests: int = 0
-    agent_runs: int = 0
-    automation_runs: int = 0
-    storage_bytes: int = 0
+    ai_requests: int = Field(default=0, ge=0)
+    agent_runs: int = Field(default=0, ge=0)
+    automation_runs: int = Field(default=0, ge=0)
+    storage_bytes: int = Field(default=0, ge=0)
 
 
-def store(request) -> SaaSStore:
+def store(request: Request) -> SaaSStore:
     return request.app.state.saas_store
 
 
 @router.post("/users", status_code=201)
-def create_user(payload: UserCreate, request):
-    return store(request).create_user(str(payload.email))
+def create_user(payload: UserCreate, request: Request):
+    return store(request).create_user(payload.email)
 
 
 @router.post("/workspaces", status_code=201)
-def create_workspace(payload: WorkspaceCreate, request):
+def create_workspace(payload: WorkspaceCreate, request: Request):
     try:
         return store(request).create_workspace(payload.name, payload.owner_id)
     except KeyError as exc:
@@ -52,7 +52,7 @@ def create_workspace(payload: WorkspaceCreate, request):
 
 
 @router.post("/workspaces/{workspace_id}/members", status_code=201)
-def add_member(workspace_id: str, payload: MemberCreate, request):
+def add_member(workspace_id: str, payload: MemberCreate, request: Request):
     try:
         return store(request).add_member(workspace_id, payload.actor_id, payload.user_id, payload.role)
     except TenantAccessError as exc:
@@ -64,7 +64,7 @@ def add_member(workspace_id: str, payload: MemberCreate, request):
 
 
 @router.patch("/workspaces/{workspace_id}/plan")
-def update_plan(workspace_id: str, payload: PlanUpdate, request):
+def update_plan(workspace_id: str, payload: PlanUpdate, request: Request):
     try:
         return store(request).set_plan(workspace_id, payload.actor_id, payload.plan)
     except TenantAccessError as exc:
@@ -74,7 +74,7 @@ def update_plan(workspace_id: str, payload: PlanUpdate, request):
 
 
 @router.get("/workspaces/{workspace_id}/usage")
-def get_usage(workspace_id: str, user_id: str, request):
+def get_usage(workspace_id: str, user_id: str, request: Request):
     try:
         store(request).membership(workspace_id, user_id)
         usage = store(request).usage[workspace_id]
@@ -86,7 +86,7 @@ def get_usage(workspace_id: str, user_id: str, request):
 
 
 @router.post("/workspaces/{workspace_id}/usage", status_code=201)
-def record_usage(workspace_id: str, payload: UsageUpdate, request):
+def record_usage(workspace_id: str, payload: UsageUpdate, request: Request):
     try:
         return store(request).record_usage(workspace_id, payload.user_id, ai_requests=payload.ai_requests, agent_runs=payload.agent_runs, automation_runs=payload.automation_runs, storage_bytes=payload.storage_bytes)
     except TenantAccessError as exc:
