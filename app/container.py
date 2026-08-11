@@ -7,6 +7,8 @@ from app.gmail_tools import GmailToolFactory
 from app.integrations.calendar_connection import CalendarConnection
 from app.integrations.gmail_connection import GmailConnection
 from app.integrations.oauth import InMemoryTokenStore
+from app.meetings import MeetingStore
+from app.meeting_tools import MeetingToolFactory
 from app.permissions import AllowListPermissionChecker
 from app.tasks import TaskStore, TaskToolFactory
 from app.tools import ToolRegistry
@@ -17,6 +19,7 @@ class AppContainer:
     tools: ToolRegistry
     automations: AutomationStore | None = None
     automation_runner: AutomationRunner | None = None
+    meetings: MeetingStore | None = None
 
 
 def build_container() -> AppContainer:
@@ -28,27 +31,17 @@ def build_container() -> AppContainer:
     calendar_factory = CalendarToolFactory(calendar_connection)
     task_factory = TaskToolFactory(TaskStore())
     file_factory = FileToolFactory(FileStore())
+    meeting_store = MeetingStore()
+    meeting_factory = MeetingToolFactory(meeting_store)
 
     permissions = AllowListPermissionChecker(
         frozenset(
             {
-                "gmail.list_messages",
-                "gmail.get_message",
-                "calendar.list_events",
-                "calendar.get_event",
-                "calendar.create_event",
-                "calendar.update_event",
-                "calendar.delete_event",
-                "tasks.create_task",
-                "tasks.list_tasks",
-                "tasks.get_task",
-                "tasks.update_task",
-                "tasks.delete_task",
-                "files.create_file",
-                "files.list_files",
-                "files.read_file",
-                "files.update_file",
-                "files.delete_file",
+                "gmail.list_messages", "gmail.get_message",
+                "calendar.list_events", "calendar.get_event", "calendar.create_event", "calendar.update_event", "calendar.delete_event",
+                "tasks.create_task", "tasks.list_tasks", "tasks.get_task", "tasks.update_task", "tasks.delete_task",
+                "files.create_file", "files.list_files", "files.read_file", "files.update_file", "files.delete_file",
+                "meetings.connect", "meetings.create", "meetings.list", "meetings.get", "meetings.update", "meetings.delete",
             }
         )
     )
@@ -59,6 +52,7 @@ def build_container() -> AppContainer:
         *calendar_factory.definitions(),
         *task_factory.definitions(),
         *file_factory.definitions(),
+        *meeting_factory.definitions(),
     ):
         registry.register(tool)
 
@@ -67,4 +61,5 @@ def build_container() -> AppContainer:
         tools=registry,
         automations=automations,
         automation_runner=AutomationRunner(automations, registry),
+        meetings=meeting_store,
     )
