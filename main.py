@@ -13,6 +13,7 @@ from app.errors import permission_denied_handler, tool_argument_error_handler, t
 from app.integrations import router as integrations_router
 from app.observability import router as observability_router
 from app.permissions import PermissionDeniedError
+from app.revenue import router as revenue_router
 from app.security import router as security_router, security_headers
 from app.tools import ToolArgumentError
 from app.usage import router as usage_router
@@ -47,6 +48,7 @@ app.include_router(integrations_router)
 app.include_router(security_router)
 app.include_router(observability_router)
 app.include_router(admin_router)
+app.include_router(revenue_router)
 
 
 @app.get("/", tags=["system"])
