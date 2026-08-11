@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.admin import router as admin_router
 from app.api import router as tools_router
 from app.auth_api import router as auth_router
 from app.automation_api import router as automation_router
@@ -10,6 +11,7 @@ from app.container import build_container
 from app.dashboard import router as dashboard_router
 from app.errors import permission_denied_handler, tool_argument_error_handler, tool_not_found_handler
 from app.integrations import router as integrations_router
+from app.observability import router as observability_router
 from app.permissions import PermissionDeniedError
 from app.security import router as security_router, security_headers
 from app.tools import ToolArgumentError
@@ -43,6 +45,8 @@ app.include_router(dashboard_router)
 app.include_router(web_router)
 app.include_router(integrations_router)
 app.include_router(security_router)
+app.include_router(observability_router)
+app.include_router(admin_router)
 
 
 @app.get("/", tags=["system"])
