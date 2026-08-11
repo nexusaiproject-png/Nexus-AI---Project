@@ -17,9 +17,16 @@ def test_container_builds_single_tool_registry() -> None:
         "files.update_file",
         "gmail.get_message",
         "gmail.list_messages",
+        "meetings.connect",
+        "meetings.create",
+        "meetings.delete",
+        "meetings.get",
+        "meetings.list",
+        "meetings.update",
         "tasks.create_task",
         "tasks.delete_task",
         "tasks.get_task",
         "tasks.list_tasks",
         "tasks.update_task",
     )
+    assert container.meetings is not None
