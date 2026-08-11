@@ -12,9 +12,24 @@ class FakeTools:
         self.invalid = invalid
 
     def names(self) -> tuple[str, ...]:
-        return ("gmail.get_message", "gmail.list_messages")
+        return (
+            "calendar.create_event",
+            "calendar.delete_event",
+            "calendar.get_event",
+            "calendar.list_events",
+            "calendar.update_event",
+            "gmail.get_message",
+            "gmail.list_messages",
+        )
 
-    async def execute(self, name: str, arguments: dict[str, object], subject_id: str):
+    async def execute(
+        self,
+        name: str,
+        arguments: dict[str, object],
+        subject_id: str,
+        confirmations=None,
+        call_id: str | None = None,
+    ):
         if name != "gmail.list_messages":
             raise KeyError(f"tool not found: {name}")
         if not self.allowed:
@@ -34,16 +49,29 @@ def test_tools_endpoint_exposes_application_registry(monkeypatch) -> None:
     with TestClient(app) as client:
         response = client.get("/tools")
     assert response.status_code == 200
-    assert response.json() == {"tools": ["gmail.get_message", "gmail.list_messages"]}
+    assert response.json() == {
+        "tools": [
+            "calendar.create_event",
+            "calendar.delete_event",
+            "calendar.get_event",
+            "calendar.list_events",
+            "calendar.update_event",
+            "gmail.get_message",
+            "gmail.list_messages",
+        ]
+    }
 
 
 def test_tool_execution_endpoint_runs_allowed_gmail_tool(monkeypatch) -> None:
     monkeypatch.setattr(main, "build_container", lambda: FakeContainer())
     with TestClient(app) as client:
-        response = client.post("/tools/gmail.list_messages/execute", json={
-            "subject_id": "account-1",
-            "arguments": {"account_id": "account-1", "max_results": 5},
-        })
+        response = client.post(
+            "/tools/gmail.list_messages/execute",
+            json={
+                "subject_id": "account-1",
+                "arguments": {"account_id": "account-1", "max_results": 5},
+            },
+        )
     assert response.status_code == 200
     assert response.json() == {"result": {"max_results": 5}}
 
@@ -51,25 +79,34 @@ def test_tool_execution_endpoint_runs_allowed_gmail_tool(monkeypatch) -> None:
 def test_tool_execution_endpoint_rejects_unknown_tool(monkeypatch) -> None:
     monkeypatch.setattr(main, "build_container", lambda: FakeContainer())
     with TestClient(app) as client:
-        response = client.post("/tools/not-a-tool/execute", json={"subject_id": "account-1", "arguments": {}})
+        response = client.post(
+            "/tools/not-a-tool/execute",
+            json={"subject_id": "account-1", "arguments": {}},
+        )
     assert response.status_code == 404
 
 
 def test_tool_execution_endpoint_maps_permission_denial(monkeypatch) -> None:
     monkeypatch.setattr(main, "build_container", lambda: FakeContainer(allowed=False))
     with TestClient(app) as client:
-        response = client.post("/tools/gmail.list_messages/execute", json={
-            "subject_id": "account-1",
-            "arguments": {"account_id": "account-1"},
-        })
+        response = client.post(
+            "/tools/gmail.list_messages/execute",
+            json={
+                "subject_id": "account-1",
+                "arguments": {"account_id": "account-1"},
+            },
+        )
     assert response.status_code == 403
 
 
 def test_tool_execution_endpoint_maps_argument_errors(monkeypatch) -> None:
     monkeypatch.setattr(main, "build_container", lambda: FakeContainer(invalid=True))
     with TestClient(app) as client:
-        response = client.post("/tools/gmail.list_messages/execute", json={
-            "subject_id": "account-1",
-            "arguments": {"account_id": "account-1"},
-        })
+        response = client.post(
+            "/tools/gmail.list_messages/execute",
+            json={
+                "subject_id": "account-1",
+                "arguments": {"account_id": "account-1"},
+            },
+        )
     assert response.status_code == 422
