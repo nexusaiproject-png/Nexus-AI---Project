@@ -11,6 +11,8 @@ from app.errors import (
     tool_not_found_handler,
 )
 from app.permissions import PermissionDeniedError
+from app.saas import SaaSStore
+from app.saas_api import router as saas_router
 from app.tools import ToolArgumentError
 from app.web import router as web_router
 
@@ -18,8 +20,10 @@ from app.web import router as web_router
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     app.state.container = build_container()
+    app.state.saas_store = SaaSStore()
     yield
     app.state.container = None
+    app.state.saas_store = None
 
 
 app = FastAPI(
@@ -33,6 +37,7 @@ app.add_exception_handler(KeyError, tool_not_found_handler)
 app.add_exception_handler(ToolArgumentError, tool_argument_error_handler)
 app.include_router(tools_router)
 app.include_router(automation_router)
+app.include_router(saas_router)
 app.include_router(web_router)
 
 
