@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Cookie, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+from app import auth_api
 from app.auth_api import current_user
 
 router = APIRouter(prefix="/security", tags=["security"])
@@ -25,12 +26,21 @@ class AuditLog:
             conn.execute("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, workspace_id INTEGER, action TEXT NOT NULL, metadata TEXT NOT NULL, created_at INTEGER NOT NULL)")
             conn.commit()
 
+    def bind_to_auth_store(self) -> None:
+        self.db_path = Path(auth_api.store.db_path)
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(str(self.db_path)) as conn:
+            conn.execute("CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, workspace_id INTEGER, action TEXT NOT NULL, metadata TEXT NOT NULL, created_at INTEGER NOT NULL)")
+            conn.commit()
+
     def record(self, user_id: int, workspace_id: int | None, action: str, metadata: dict[str, Any] | None = None) -> None:
+        self.bind_to_auth_store()
         with self._lock, sqlite3.connect(str(self.db_path)) as conn:
             conn.execute("INSERT INTO audit_log(user_id,workspace_id,action,metadata,created_at) VALUES(?,?,?,?,?)", (user_id, workspace_id, action, json.dumps(metadata or {}, sort_keys=True), int(time.time())))
             conn.commit()
 
     def list_for_user(self, user_id: int) -> list[dict[str, Any]]:
+        self.bind_to_auth_store()
         with sqlite3.connect(str(self.db_path)) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute("SELECT id,user_id,workspace_id,action,metadata,created_at FROM audit_log WHERE user_id=? ORDER BY id DESC", (user_id,)).fetchall()
@@ -41,7 +51,7 @@ audit = AuditLog()
 
 
 def _auth_db() -> Path:
-    return Path(os.getenv("NEXUS_AUTH_DB", "data/auth.db"))
+    return Path(auth_api.store.db_path)
 
 
 @router.get("/audit")
