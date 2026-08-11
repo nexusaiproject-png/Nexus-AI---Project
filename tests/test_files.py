@@ -1,5 +1,6 @@
 import pytest
 
+from app.confirmation import ConfirmationSet
 from app.files import FileStore, FileToolFactory
 from app.tools import ToolRegistry
 
@@ -14,7 +15,7 @@ async def test_file_crud_and_subject_isolation(tmp_path) -> None:
     created = await registry.execute(
         "files.create_file",
         {"subject_id": "s1", "name": "notes/plan.txt", "content": "hello"},
-        confirmations=None,
+        confirmations=ConfirmationSet(frozenset({"create-1"})),
         call_id="create-1",
     )
     assert created == {"name": "notes/plan.txt", "size": 5}
@@ -32,7 +33,7 @@ async def test_file_crud_and_subject_isolation(tmp_path) -> None:
     updated = await registry.execute(
         "files.update_file",
         {"subject_id": "s1", "name": "notes/plan.txt", "content": "updated"},
-        confirmations=None,
+        confirmations=ConfirmationSet(frozenset({"update-1"})),
         call_id="update-1",
     )
     assert updated == {"name": "notes/plan.txt", "size": 7}
@@ -40,7 +41,7 @@ async def test_file_crud_and_subject_isolation(tmp_path) -> None:
     deleted = await registry.execute(
         "files.delete_file",
         {"subject_id": "s1", "name": "notes/plan.txt"},
-        confirmations=None,
+        confirmations=ConfirmationSet(frozenset({"delete-1"})),
         call_id="delete-1",
     )
     assert deleted == {"deleted": True, "name": "notes/plan.txt"}
