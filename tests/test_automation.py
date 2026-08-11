@@ -6,6 +6,7 @@ from app.automation import (
     Automation,
     AutomationAction,
     AutomationCondition,
+    AutomationError,
     AutomationNotFoundError,
     AutomationRunner,
     AutomationStore,
@@ -79,11 +80,18 @@ async def test_runner_skips_disabled_or_non_matching_automation() -> None:
     store = AutomationStore()
     noop = (AutomationAction("echo", {"value": "noop"}),)
     store.create(Automation("disabled", "s1", "disabled", AutomationTrigger("event"), actions=noop, enabled=False))
-    store.create(Automation("wrong", "s1", "wrong", AutomationTrigger("other"), actions=noop))
+    store.create(Automation("wrong", "s1", "wrong", AutomationTrigger("event", {"name": "other.event"}), actions=noop))
     runner = AutomationRunner(store, tools)
 
-    assert await runner.dispatch("s1", AutomationTrigger("event"), {}) == {}
+    assert await runner.dispatch("s1", AutomationTrigger("event", {"name": "task.updated"}), {}) == {}
     assert calls == []
+
+
+def test_store_rejects_unsupported_trigger_kind() -> None:
+    store = AutomationStore()
+    action = AutomationAction("echo", {"value": "noop"})
+    with pytest.raises(AutomationError, match="unsupported trigger kind"):
+        store.create(Automation("invalid", "s1", "invalid", AutomationTrigger("other"), actions=(action,)))
 
 
 @pytest.mark.asyncio
