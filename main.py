@@ -12,6 +12,7 @@ from app.errors import (
 )
 from app.permissions import PermissionDeniedError
 from app.tools import ToolArgumentError
+from app.web import router as web_router
 
 
 @asynccontextmanager
@@ -32,6 +33,7 @@ app.add_exception_handler(KeyError, tool_not_found_handler)
 app.add_exception_handler(ToolArgumentError, tool_argument_error_handler)
 app.include_router(tools_router)
 app.include_router(automation_router)
+app.include_router(web_router)
 
 
 @app.get("/", tags=["system"])
