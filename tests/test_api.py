@@ -48,6 +48,11 @@ def test_tool_router_lists_tools(client: TestClient) -> None:
             "calendar.update_event",
             "gmail.get_message",
             "gmail.list_messages",
+            "tasks.create_task",
+            "tasks.delete_task",
+            "tasks.get_task",
+            "tasks.list_tasks",
+            "tasks.update_task",
         ]
     }
 
