@@ -1,5 +1,6 @@
 import pytest
 
+from app.confirmation import ConfirmationSet
 from app.tasks import TaskStore, TaskToolFactory
 from app.tools import ToolRegistry
 
@@ -11,10 +12,14 @@ async def test_task_crud_and_subject_isolation() -> None:
     for tool in factory.definitions():
         registry.register(tool)
 
+    confirmations = ConfirmationSet(
+        frozenset({"create-1", "update-1", "delete-1"})
+    )
+
     created = await registry.execute(
         "tasks.create_task",
         {"subject_id": "s1", "title": "Ship feature", "description": "finish it"},
-        confirmed=True,
+        confirmations=confirmations,
         call_id="create-1",
     )
     assert created["title"] == "Ship feature"
@@ -26,7 +31,7 @@ async def test_task_crud_and_subject_isolation() -> None:
     updated = await registry.execute(
         "tasks.update_task",
         {"subject_id": "s1", "task_id": task_id, "completed": True},
-        confirmed=True,
+        confirmations=confirmations,
         call_id="update-1",
     )
     assert updated["completed"] is True
@@ -35,7 +40,7 @@ async def test_task_crud_and_subject_isolation() -> None:
     assert await registry.execute(
         "tasks.delete_task",
         {"subject_id": "s1", "task_id": task_id},
-        confirmed=True,
+        confirmations=confirmations,
         call_id="delete-1",
     ) == {"deleted": True, "task_id": task_id}
 
