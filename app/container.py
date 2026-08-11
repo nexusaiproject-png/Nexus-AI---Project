@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 
-from app.calendar_registry import build_calendar_registry
 from app.calendar_tools import CalendarToolFactory
-from app.gmail_registry import build_gmail_registry
+from app.files import FileStore, FileToolFactory
 from app.gmail_tools import GmailToolFactory
 from app.integrations.calendar_connection import CalendarConnection
 from app.integrations.gmail_connection import GmailConnection
@@ -25,6 +24,7 @@ def build_container() -> AppContainer:
     gmail_factory = GmailToolFactory(gmail_connection)
     calendar_factory = CalendarToolFactory(calendar_connection)
     task_factory = TaskToolFactory(TaskStore())
+    file_factory = FileToolFactory(FileStore())
 
     permissions = AllowListPermissionChecker(
         frozenset(
@@ -41,11 +41,21 @@ def build_container() -> AppContainer:
                 "tasks.get_task",
                 "tasks.update_task",
                 "tasks.delete_task",
+                "files.create_file",
+                "files.list_files",
+                "files.read_file",
+                "files.update_file",
+                "files.delete_file",
             }
         )
     )
 
     registry = ToolRegistry(permission_checker=permissions)
-    for tool in (*gmail_factory.definitions(), *calendar_factory.definitions(), *task_factory.definitions()):
+    for tool in (
+        *gmail_factory.definitions(),
+        *calendar_factory.definitions(),
+        *task_factory.definitions(),
+        *file_factory.definitions(),
+    ):
         registry.register(tool)
     return AppContainer(tools=registry)
