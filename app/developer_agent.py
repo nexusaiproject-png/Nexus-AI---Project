@@ -85,12 +85,12 @@ class InMemoryDeveloperWorkspace:
         return dict(item)
 
     async def get_pull_request_diff(self, owner: str, repo: str, number: int) -> Any:
-        if (owner, repo, number) not in self.pull_requests:
+        if number not in self.pull_requests.get((owner, repo), {}):
             raise DeveloperAgentError(f"pull request not found: {number}")
         return self.pull_request_diffs.get((owner, repo, number), "")
 
     async def list_pull_request_files(self, owner: str, repo: str, number: int) -> Any:
-        if (owner, repo, number) not in self.pull_requests:
+        if number not in self.pull_requests.get((owner, repo), {}):
             raise DeveloperAgentError(f"pull request not found: {number}")
         return [dict(v) for v in self.pull_request_files.get((owner, repo, number), [])]
 
