@@ -1,5 +1,6 @@
 import pytest
 
+from app.confirmation import ConfirmationRequiredError
 from app.permissions import AllowListPermissionChecker, PermissionDeniedError
 from app.tools import ToolArgumentError, ToolDefinition, ToolRegistry
 from pydantic import BaseModel, Field
@@ -76,6 +77,41 @@ async def test_registry_requires_subject_when_permission_checker_is_configured()
 
     with pytest.raises(PermissionDeniedError, match="subject_id is required"):
         await registry.execute("echo", {})
+
+
+@pytest.mark.asyncio
+async def test_registry_requires_confirmation_for_sensitive_tool() -> None:
+    calls: list[dict[str, object]] = []
+
+    async def handler(arguments: dict[str, object]) -> dict[str, object]:
+        calls.append(arguments)
+        return {"ok": True}
+
+    registry = ToolRegistry()
+    registry.register(ToolDefinition("delete", "Delete data", handler, requires_confirmation=True))
+
+    with pytest.raises(ConfirmationRequiredError, match="confirmation required: delete \(call-1\)"):
+        await registry.execute("delete", {"id": "123"}, call_id="call-1")
+    assert calls == []
+
+    assert await registry.execute(
+        "delete", {"id": "123"}, confirmed=True, call_id="call-1"
+    ) == {"ok": True}
+    assert calls == [{"id": "123"}]
+
+
+@pytest.mark.asyncio
+async def test_permission_is_checked_before_confirmation() -> None:
+    async def handler(_: dict[str, object]) -> None:
+        raise AssertionError("handler must not run")
+
+    registry = ToolRegistry(
+        permission_checker=AllowListPermissionChecker(frozenset())
+    )
+    registry.register(ToolDefinition("delete", "Delete", handler, requires_confirmation=True))
+
+    with pytest.raises(PermissionDeniedError, match="permission denied"):
+        await registry.execute("delete", {}, subject_id="account-1")
 
 
 def test_registry_rejects_duplicate_and_blank_names() -> None:
