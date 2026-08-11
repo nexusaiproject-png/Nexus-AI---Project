@@ -8,7 +8,8 @@ from app.integrations.calendar_connection import CalendarConnection
 from app.integrations.gmail_connection import GmailConnection
 from app.integrations.oauth import InMemoryTokenStore
 from app.permissions import AllowListPermissionChecker
-from app.tools import ToolDefinition, ToolRegistry
+from app.tasks import TaskStore, TaskToolFactory
+from app.tools import ToolRegistry
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,7 @@ def build_container() -> AppContainer:
 
     gmail_factory = GmailToolFactory(gmail_connection)
     calendar_factory = CalendarToolFactory(calendar_connection)
+    task_factory = TaskToolFactory(TaskStore())
 
     permissions = AllowListPermissionChecker(
         frozenset(
@@ -34,11 +36,16 @@ def build_container() -> AppContainer:
                 "calendar.create_event",
                 "calendar.update_event",
                 "calendar.delete_event",
+                "tasks.create_task",
+                "tasks.list_tasks",
+                "tasks.get_task",
+                "tasks.update_task",
+                "tasks.delete_task",
             }
         )
     )
 
     registry = ToolRegistry(permission_checker=permissions)
-    for tool in (*gmail_factory.definitions(), *calendar_factory.definitions()):
+    for tool in (*gmail_factory.definitions(), *calendar_factory.definitions(), *task_factory.definitions()):
         registry.register(tool)
     return AppContainer(tools=registry)
