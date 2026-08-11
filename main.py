@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from app.api import router as tools_router
 from app.auth_api import router as auth_router
 from app.automation_api import router as automation_router
+from app.billing import router as billing_router
 from app.container import build_container
 from app.errors import permission_denied_handler, tool_argument_error_handler, tool_not_found_handler
 from app.permissions import PermissionDeniedError
@@ -31,6 +32,7 @@ app.add_exception_handler(ToolArgumentError, tool_argument_error_handler)
 app.include_router(tools_router)
 app.include_router(automation_router)
 app.include_router(auth_router)
+app.include_router(billing_router)
 app.include_router(web_router)
 
 
