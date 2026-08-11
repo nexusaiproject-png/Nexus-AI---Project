@@ -10,6 +10,7 @@ from app.container import build_container
 from app.errors import permission_denied_handler, tool_argument_error_handler, tool_not_found_handler
 from app.permissions import PermissionDeniedError
 from app.tools import ToolArgumentError
+from app.usage import router as usage_router
 from app.web import router as web_router
 
 
@@ -33,6 +34,7 @@ app.include_router(tools_router)
 app.include_router(automation_router)
 app.include_router(auth_router)
 app.include_router(billing_router)
+app.include_router(usage_router)
 app.include_router(web_router)
 
 
