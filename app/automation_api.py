@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -8,6 +7,7 @@ from app.automation import (
     Automation,
     AutomationAction,
     AutomationCondition,
+    AutomationError,
     AutomationNotFoundError,
     AutomationTrigger,
     new_automation_id,
@@ -53,6 +53,12 @@ class AutomationUpdatePayload(BaseModel):
     enabled: bool | None = None
 
 
+class RunPayload(BaseModel):
+    subject_id: str = Field(min_length=1)
+    event: dict[str, Any] = Field(default_factory=dict)
+    confirmation_ids: list[str] = Field(default_factory=list)
+
+
 def _to_dict(item: Automation) -> dict[str, Any]:
     return {
         "id": item.id,
@@ -81,9 +87,12 @@ def _build(payload: AutomationPayload) -> Automation:
 
 @router.post("")
 async def create_automation(payload: AutomationPayload, request: Request) -> dict[str, Any]:
-    item = _build(payload)
-    request.app.state.container.automations.create(item)
-    return _to_dict(item)
+    try:
+        item = _build(payload)
+        request.app.state.container.automations.create(item)
+        return _to_dict(item)
+    except AutomationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("")
@@ -116,6 +125,8 @@ async def update_automation(automation_id: str, payload: AutomationUpdatePayload
         return _to_dict(request.app.state.container.automations.update(automation_id, payload.subject_id, **changes))
     except AutomationNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except AutomationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.delete("/{automation_id}")
@@ -125,12 +136,6 @@ async def delete_automation(automation_id: str, subject_id: str, request: Reques
     except AutomationNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {"deleted": True}
-
-
-class RunPayload(BaseModel):
-    subject_id: str = Field(min_length=1)
-    event: dict[str, Any] = Field(default_factory=dict)
-    confirmation_ids: list[str] = Field(default_factory=list)
 
 
 @router.post("/{automation_id}/run")
