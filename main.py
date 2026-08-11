@@ -9,6 +9,7 @@ from app.billing import router as billing_router
 from app.container import build_container
 from app.dashboard import router as dashboard_router
 from app.errors import permission_denied_handler, tool_argument_error_handler, tool_not_found_handler
+from app.integrations import router as integrations_router
 from app.permissions import PermissionDeniedError
 from app.tools import ToolArgumentError
 from app.usage import router as usage_router
@@ -38,6 +39,7 @@ app.include_router(billing_router)
 app.include_router(usage_router)
 app.include_router(dashboard_router)
 app.include_router(web_router)
+app.include_router(integrations_router)
 
 
 @app.get("/", tags=["system"])
