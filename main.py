@@ -11,6 +11,7 @@ from app.dashboard import router as dashboard_router
 from app.errors import permission_denied_handler, tool_argument_error_handler, tool_not_found_handler
 from app.integrations import router as integrations_router
 from app.permissions import PermissionDeniedError
+from app.security import router as security_router, security_headers
 from app.tools import ToolArgumentError
 from app.usage import router as usage_router
 from app.web import router as web_router
@@ -29,6 +30,7 @@ app = FastAPI(
     description="Backend foundation for the Nexus AI Workspace platform.",
     lifespan=lifespan,
 )
+app.middleware("http")(security_headers)
 app.add_exception_handler(PermissionDeniedError, permission_denied_handler)
 app.add_exception_handler(KeyError, tool_not_found_handler)
 app.add_exception_handler(ToolArgumentError, tool_argument_error_handler)
@@ -40,6 +42,7 @@ app.include_router(usage_router)
 app.include_router(dashboard_router)
 app.include_router(web_router)
 app.include_router(integrations_router)
+app.include_router(security_router)
 
 
 @app.get("/", tags=["system"])
