@@ -42,13 +42,31 @@ jobs:
         run: |
           set -euo pipefail
           docker run --detach --name nexus-ai-ci --publish 18000:8000 nexus-ai:ci
-          trap 'docker logs nexus-ai-ci || true; docker rm --force nexus-ai-ci || true' EXIT
-          for _ in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:18000/health >/tmp/health.json; then
-              grep -q '"status":"ok"' /tmp/health.json
+          trap 'docker logs nexus-ai-ci || true; docker inspect nexus-ai-ci --format="{{json .State.Health}}" || true; docker rm --force nexus-ai-ci || true' EXIT
+
+          for _ in {1..45}; do
+            status="$(docker inspect --format='{{.State.Status}}' nexus-ai-ci 2>/dev/null || true)"
+            if [[ "$status" == "exited" || "$status" == "dead" ]]; then
+              echo "container stopped unexpectedly" >&2
+              exit 1
+            fi
+
+            health="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}starting{{end}}' nexus-ai-ci 2>/dev/null || true)"
+            if [[ "$health" == "healthy" ]]; then
+              python - <<'PY'
+import json
+import urllib.request
+
+with urllib.request.urlopen("http://127.0.0.1:18000/health", timeout=5) as response:
+    assert response.status == 200
+    payload = json.load(response)
+
+assert payload.get("status") == "ok"
+PY
               exit 0
             fi
             sleep 1
           done
+
           echo 'container health check timed out' >&2
           exit 1
