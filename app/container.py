@@ -15,8 +15,8 @@ from app.tools import ToolRegistry
 @dataclass(frozen=True)
 class AppContainer:
     tools: ToolRegistry
-    automations: AutomationStore
-    automation_runner: AutomationRunner
+    automations: AutomationStore | None = None
+    automation_runner: AutomationRunner | None = None
 
 
 def build_container() -> AppContainer:
