@@ -14,6 +14,8 @@ RUN python -m pip install --upgrade pip && python -m pip install -r requirements
 COPY app ./app
 COPY main.py ./main.py
 
+RUN mkdir -p /app/data/files && chown -R nexus:nexus /app/data
+
 USER nexus
 EXPOSE 8000
 
