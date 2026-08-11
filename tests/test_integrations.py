@@ -13,12 +13,19 @@ def signup_and_verify(client, email):
     assert verify.status_code == 200
 
 
+def create_workspace(client, name):
+    response = client.post("/auth/workspace", json={"name": name, "purpose": "integration tests"})
+    assert response.status_code == 201
+    return response.json()["workspace_id"]
+
+
 def test_connection_lifecycle_and_tenant_isolation(tmp_path, monkeypatch):
     monkeypatch.setattr(auth_api, "store", AuthStore(tmp_path / "auth.db"))
     with TestClient(app) as client:
         signup_and_verify(client, "integration-a@example.com")
         login = client.post("/auth/login", json={"email": "integration-a@example.com", "password": "password123"})
         assert login.status_code == 200
+        create_workspace(client, "Integration A")
         connection = client.post("/integrations", json={"provider": "gmail", "access_token": "secret", "scopes": ["mail.read"]})
         assert connection.status_code == 200
         item_id = connection.json()["id"]
@@ -34,4 +41,5 @@ def test_connection_lifecycle_and_tenant_isolation(tmp_path, monkeypatch):
         signup_and_verify(client, "integration-b@example.com")
         login = client.post("/auth/login", json={"email": "integration-b@example.com", "password": "password123"})
         assert login.status_code == 200
+        create_workspace(client, "Integration B")
         assert client.get("/integrations").json()["connections"] == []
