@@ -1,7 +1,7 @@
 from typing import Any
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 
 class GmailListMessagesArguments(BaseModel):
@@ -151,6 +151,9 @@ class DeveloperListPullRequestsArguments(DeveloperRepositoryArguments):
 class DeveloperGetPullRequestArguments(DeveloperRepositoryArguments):
     number: int = Field(ge=1)
 
+class DeveloperListPullRequestFilesArguments(DeveloperGetPullRequestArguments):
+    pass
+
 class DeveloperCreateIssueArguments(DeveloperRepositoryArguments):
     title: str = Field(min_length=1, max_length=300)
     body: str | None = Field(default=None, max_length=10000)
@@ -158,6 +161,12 @@ class DeveloperCreateIssueArguments(DeveloperRepositoryArguments):
 class DeveloperBranchArguments(DeveloperRepositoryArguments):
     branch: str = Field(min_length=1, max_length=200)
     base: str = Field(min_length=1, max_length=200)
+
+class DeveloperCreatePullRequestArguments(DeveloperRepositoryArguments):
+    title: str = Field(min_length=1, max_length=300)
+    head: str = Field(min_length=1, max_length=200)
+    base: str = Field(min_length=1, max_length=200)
+    body: str | None = Field(default=None, max_length=10000)
 
 class DeveloperUpdateFileArguments(DeveloperRepositoryArguments):
     path: str = Field(min_length=1, max_length=1000)
