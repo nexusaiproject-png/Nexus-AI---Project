@@ -1,5 +1,6 @@
 name: CI
 
+# CI is intentionally runnable by push, pull request, or manual dispatch.
 on:
   push:
     branches:
