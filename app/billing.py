@@ -15,7 +15,7 @@ from typing import Any
 from fastapi import APIRouter, Cookie, HTTPException, Request
 from pydantic import BaseModel
 
-from app.auth_api import current_user, store as auth_store
+from app.auth_api import current_user
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -43,6 +43,7 @@ class Subscription:
     status: str
     provider_subscription_id: str | None = None
     provider_customer_id: str | None = None
+    latest_payment_intent: str | None = None
     cancel_at_period_end: bool = False
     current_period_end: str | None = None
 
@@ -58,6 +59,10 @@ class CheckoutRequest(BaseModel):
 
 class CancelRequest(BaseModel):
     cancel_at_period_end: bool = True
+
+
+class RefundRequest(BaseModel):
+    amount: int | None = None
 
 
 def _workspace_id(session: str | None) -> str:
@@ -145,9 +150,12 @@ def checkout(payload: CheckoutRequest, nexus_session: str | None = Cookie(defaul
         "customer": customer_id,
         "line_items[0][price]": price_id,
         "line_items[0][quantity]": "1",
+        "subscription_data[metadata][workspace_id]": workspace_id,
+        "subscription_data[metadata][plan]": plan.key,
+        "metadata[workspace_id]": workspace_id,
+        "metadata[plan]": plan.key,
         "success_url": f"{base}/web/billing.html?success=1",
         "cancel_url": f"{base}/web/billing.html?canceled=1",
-        "metadata[workspace_id]": workspace_id,
     })
     return {"checkout_url": session.get("url"), "session_id": session.get("id")}
 
@@ -161,6 +169,21 @@ def cancel(payload: CancelRequest, nexus_session: str | None = Cookie(default=No
     _stripe_request(f"subscriptions/{sub.provider_subscription_id}", {"cancel_at_period_end": str(payload.cancel_at_period_end).lower()})
     sub.cancel_at_period_end = payload.cancel_at_period_end
     return sub.__dict__
+
+
+@router.post("/refund")
+def refund(payload: RefundRequest, nexus_session: str | None = Cookie(default=None)) -> dict[str, Any]:
+    workspace_id = _workspace_id(nexus_session)
+    sub = _SUBSCRIPTIONS.get(workspace_id)
+    if not sub or not sub.latest_payment_intent:
+        raise HTTPException(status_code=404, detail="refundable payment not found")
+    data = {"payment_intent": sub.latest_payment_intent}
+    if payload.amount is not None:
+        if payload.amount <= 0:
+            raise HTTPException(status_code=400, detail="refund amount must be positive")
+        data["amount"] = str(payload.amount)
+    result = _stripe_request("refunds", data)
+    return {"refund_id": result.get("id"), "status": result.get("status")}
 
 
 @router.post("/portal")
@@ -201,6 +224,11 @@ async def webhook(request: Request) -> dict[str, bool]:
                 cancel_at_period_end=bool(obj.get("cancel_at_period_end", False)),
                 current_period_end=datetime.fromtimestamp(obj["current_period_end"], tz=timezone.utc).isoformat() if obj.get("current_period_end") else None,
             )
+        elif event_type == "invoice.paid":
+            sub = _SUBSCRIPTIONS.get(workspace_id)
+            if sub:
+                sub.status = "active"
+                sub.latest_payment_intent = obj.get("payment_intent")
         elif event_type in {"customer.subscription.deleted", "invoice.payment_failed"}:
             sub = _SUBSCRIPTIONS.get(workspace_id)
             if sub:
