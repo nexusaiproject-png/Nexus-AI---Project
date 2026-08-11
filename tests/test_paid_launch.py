@@ -12,9 +12,10 @@ from app.auth import AuthStore
 
 def _signup_verify_login_workspace(client, email):
     signup = client.post("/auth/signup", json={"email": email, "password": "password123", "name": "Paid"})
-    assert signup.status_code in {200, 201}
-    token = signup.json()["verification_token"]
-    assert client.post("/auth/verify", json={"token": token}).status_code == 200
+    assert signup.status_code == 201
+    token = auth_api.store._connect().execute("SELECT verification_token FROM users").fetchone()[0]
+    assert token
+    assert client.post("/auth/verify-email", json={"token": token}).status_code == 200
     assert client.post("/auth/login", json={"email": email, "password": "password123"}).status_code == 200
     assert client.post("/auth/workspace", json={"name": "Paid Workspace"}).status_code == 201
 
@@ -37,7 +38,6 @@ def test_paid_billing_contract(monkeypatch, tmp_path):
         assert client.get("/billing/subscription").json()["plan"] == "free"
 
         event = {"id": "evt_paid_1", "type": "customer.subscription.created", "data": {"object": {"id": "sub_1", "customer": "cus_1", "status": "active", "metadata": {"workspace_id": "workspace-1", "plan": "pro"}}}}
-        # Signature/idempotency contract is tested independently of provider credentials.
         response = _webhook(client, event)
         assert response.status_code == 200
         assert _webhook(client, event).status_code == 200
