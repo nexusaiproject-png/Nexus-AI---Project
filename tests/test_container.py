@@ -12,4 +12,9 @@ def test_container_builds_single_tool_registry() -> None:
         "calendar.update_event",
         "gmail.get_message",
         "gmail.list_messages",
+        "tasks.create_task",
+        "tasks.delete_task",
+        "tasks.get_task",
+        "tasks.list_tasks",
+        "tasks.update_task",
     )
