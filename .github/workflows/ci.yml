@@ -1,6 +1,6 @@
 name: CI
 
-# CI is intentionally runnable by push, pull request, or manual dispatch.
+# CI is runnable by push, pull request, or manual dispatch.
 on:
   push:
     branches:
@@ -53,26 +53,12 @@ jobs:
             fi
 
             if [[ "$status" == "running" ]]; then
-              if python - <<'PY'
-import json
-import urllib.request
-
-try:
-    with urllib.request.urlopen("http://127.0.0.1:18000/health", timeout=2) as response:
-        if response.status != 200:
-            raise SystemExit(1)
-        payload = json.load(response)
-    if payload.get("status") != "ok":
-        raise SystemExit(1)
-except Exception:
-    raise SystemExit(1)
-PY
-              then
+              if python -c 'import json, urllib.request; r=urllib.request.urlopen("http://127.0.0.1:18000/health", timeout=2); assert r.status == 200; assert json.load(r).get("status") == "ok"' 2>/dev/null; then
                 exit 0
               fi
             fi
             sleep 1
           done
 
-          echo 'container HTTP health check timed out' >&2
+          echo "container HTTP health check timed out" >&2
           exit 1
