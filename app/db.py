@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.config import get_settings
 from app.db_models import Base
+from app.memory import MemoryEntry
 from app.migrations import migrate
 
 settings = get_settings()
