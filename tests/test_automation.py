@@ -40,8 +40,9 @@ def test_condition_evaluator_supports_basic_operators() -> None:
 
 def test_store_is_subject_scoped() -> None:
     store = AutomationStore()
-    first = Automation("a1", "s1", "one", AutomationTrigger("event"))
-    second = Automation("a2", "s2", "two", AutomationTrigger("event"))
+    action = AutomationAction("echo", {"value": "ok"})
+    first = Automation("a1", "s1", "one", AutomationTrigger("event"), actions=(action,))
+    second = Automation("a2", "s2", "two", AutomationTrigger("event"), actions=(action,))
     store.create(first)
     store.create(second)
 
@@ -76,8 +77,9 @@ async def test_runner_skips_disabled_or_non_matching_automation() -> None:
     calls: list[dict] = []
     tools = make_registry(calls)
     store = AutomationStore()
-    store.create(Automation("disabled", "s1", "disabled", AutomationTrigger("event"), enabled=False))
-    store.create(Automation("wrong", "s1", "wrong", AutomationTrigger("other")))
+    noop = (AutomationAction("echo", {"value": "noop"}),)
+    store.create(Automation("disabled", "s1", "disabled", AutomationTrigger("event"), actions=noop, enabled=False))
+    store.create(Automation("wrong", "s1", "wrong", AutomationTrigger("other"), actions=noop))
     runner = AutomationRunner(store, tools)
 
     assert await runner.dispatch("s1", AutomationTrigger("event"), {}) == {}
