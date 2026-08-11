@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from threading import Lock
+from threading import RLock
 
 from fastapi import APIRouter, Cookie, HTTPException
 from pydantic import BaseModel, Field
 
 from app.auth_api import current_user
-from app.billing import PLANS
+from app.billing import PLANS, _SUBSCRIPTIONS
 
 
 @dataclass(frozen=True)
@@ -21,9 +21,9 @@ class UsageLimit:
 
 
 LIMITS = {
-    "free": UsageLimit(ai=100, agent=25, automation=50, storage_bytes=100 * 1024 * 1024, requests_per_minute=30),
-    "pro": UsageLimit(ai=5000, agent=1000, automation=5000, storage_bytes=10 * 1024**3, requests_per_minute=120),
-    "team": UsageLimit(ai=25000, agent=5000, automation=25000, storage_bytes=100 * 1024**3, requests_per_minute=300),
+    "free": UsageLimit(100, 25, 50, 100 * 1024 * 1024, 30),
+    "pro": UsageLimit(5000, 1000, 5000, 10 * 1024**3, 120),
+    "team": UsageLimit(25000, 5000, 25000, 100 * 1024**3, 300),
 }
 
 
@@ -47,7 +47,7 @@ class UsageLimitExceeded(Exception):
 class UsageStore:
     def __init__(self) -> None:
         self._usage: dict[str, Usage] = {}
-        self._lock = Lock()
+        self._lock = RLock()
 
     def _get(self, workspace_id: str) -> Usage:
         return self._usage.setdefault(workspace_id, Usage())
@@ -60,15 +60,10 @@ class UsageStore:
     def consume(self, workspace_id: str, plan: str, metric: str, amount: int = 1) -> Usage:
         if amount <= 0:
             raise ValueError("amount must be positive")
-        limits = LIMITS[plan]
         with self._lock:
             usage = self._get(workspace_id)
-            if metric == "storage_bytes":
-                new_value = usage.storage_bytes + amount
-            else:
-                current = getattr(usage, metric)
-                new_value = current + amount
-            limit = getattr(limits, metric)
+            new_value = usage.storage_bytes + amount if metric == "storage_bytes" else getattr(usage, metric) + amount
+            limit = getattr(LIMITS[plan], metric)
             if new_value > limit:
                 raise UsageLimitExceeded(metric, limit)
             setattr(usage, metric, new_value)
@@ -80,8 +75,7 @@ class UsageStore:
         with self._lock:
             usage = self._get(workspace_id)
             if now - usage.window_started >= 60:
-                usage.window_started = now
-                usage.requests = 0
+                usage.window_started, usage.requests = now, 0
             if usage.requests >= limit:
                 return False
             usage.requests += 1
@@ -101,12 +95,9 @@ def _workspace(session: str | None) -> tuple[str, str]:
     user = current_user(session)
     if not user.workspace_id:
         raise HTTPException(status_code=400, detail="workspace required")
-    from app.billing import _SUBSCRIPTIONS
     sub = _SUBSCRIPTIONS.get(user.workspace_id)
     plan = sub.plan if sub and sub.status in {"active", "trialing"} else "free"
-    if plan not in PLANS:
-        plan = "free"
-    return user.workspace_id, plan
+    return user.workspace_id, plan if plan in PLANS else "free"
 
 
 @router.get("")
@@ -114,12 +105,7 @@ def usage(nexus_session: str | None = Cookie(default=None)) -> dict:
     workspace_id, plan = _workspace(nexus_session)
     current = store.snapshot(workspace_id)
     limit = LIMITS[plan]
-    return {
-        "workspace_id": workspace_id,
-        "plan": plan,
-        "usage": {"ai": current.ai, "agent": current.agent, "automation": current.automation, "storage_bytes": current.storage_bytes},
-        "limits": {"ai": limit.ai, "agent": limit.agent, "automation": limit.automation, "storage_bytes": limit.storage_bytes, "requests_per_minute": limit.requests_per_minute},
-    }
+    return {"workspace_id": workspace_id, "plan": plan, "usage": {"ai": current.ai, "agent": current.agent, "automation": current.automation, "storage_bytes": current.storage_bytes}, "limits": {"ai": limit.ai, "agent": limit.agent, "automation": limit.automation, "storage_bytes": limit.storage_bytes, "requests_per_minute": limit.requests_per_minute}}
 
 
 @router.post("/consume")
