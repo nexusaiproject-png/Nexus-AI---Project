@@ -50,7 +50,8 @@ def build_container() -> AppContainer:
                 "meetings.connect", "meetings.create", "meetings.list", "meetings.get", "meetings.update", "meetings.delete",
                 "developer.get_repository", "developer.list_branches", "developer.list_commits", "developer.read_file",
                 "developer.list_issues", "developer.get_issue", "developer.list_pull_requests", "developer.get_pull_request",
-                "developer.create_issue", "developer.create_branch", "developer.update_file",
+                "developer.get_pull_request_diff", "developer.list_pull_request_files",
+                "developer.create_issue", "developer.create_branch", "developer.update_file", "developer.create_pull_request",
             }
         )
     )
