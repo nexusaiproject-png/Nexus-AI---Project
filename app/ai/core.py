@@ -1,4 +1,4 @@
-from app.ai.errors import AIConfigurationError
+from app.ai.errors import AIConfigurationError, AIProviderError
 from app.ai.models import AIRequest, AIResponse
 from app.ai.provider import AIProvider
 
@@ -16,8 +16,6 @@ class AICore:
         try:
             response = await self.provider.generate(request)
         except Exception as exc:
-            from app.ai.errors import AIProviderError
-
             raise AIProviderError(f"AI provider '{self.provider.name}' failed") from exc
 
         if not response.content.strip():
