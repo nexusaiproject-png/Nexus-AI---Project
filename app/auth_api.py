@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
+
 from fastapi import APIRouter, Cookie, HTTPException, Response
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 from app.auth import AuthError, AuthStore
 
@@ -10,18 +12,27 @@ store = AuthStore()
 
 
 class SignupRequest(BaseModel):
-    email: EmailStr
+    email: str
     name: str
     password: str
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
-class VerifyRequest(BaseModel):
+class TokenRequest(BaseModel):
     token: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    password: str
 
 
 class WorkspaceRequest(BaseModel):
@@ -40,19 +51,27 @@ def current_user(session: str | None):
     return user
 
 
+def _valid_email(email: str) -> bool:
+    local, sep, domain = email.strip().partition("@")
+    return bool(local and sep and "." in domain)
+
+
 @router.post("/signup", status_code=201)
 def signup(payload: SignupRequest) -> dict:
+    if not _valid_email(payload.email):
+        raise HTTPException(status_code=400, detail="valid email is required")
     try:
         user, token = store.create_user(payload.email, payload.name, payload.password)
     except AuthError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    # Until an email delivery integration exists, the token is returned so deployments
-    # can hand it to their configured mail layer without exposing passwords or sessions.
-    return {"user_id": user.id, "email": user.email, "verification_required": True, "verification_token": token}
+    result = {"user_id": user.id, "email": user.email, "verification_required": True}
+    if os.getenv("NEXUS_EXPOSE_DEV_TOKENS", "false").lower() == "true":
+        result["verification_token"] = token
+    return result
 
 
 @router.post("/verify-email")
-def verify_email(payload: VerifyRequest) -> dict:
+def verify_email(payload: TokenRequest) -> dict:
     try:
         user = store.verify_email(payload.token)
     except AuthError as exc:
@@ -67,7 +86,8 @@ def login(payload: LoginRequest, response: Response) -> dict:
     except AuthError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
     token = store.create_session(user.id)
-    response.set_cookie("nexus_session", token, httponly=True, secure=False, samesite="lax", max_age=86_400)
+    secure = os.getenv("NEXUS_COOKIE_SECURE", "true").lower() == "true"
+    response.set_cookie("nexus_session", token, httponly=True, secure=secure, samesite="lax", max_age=86_400)
     return {"user_id": user.id, "email": user.email, "workspace_id": user.workspace_id}
 
 
@@ -83,6 +103,24 @@ def logout(response: Response, nexus_session: str | None = Cookie(default=None))
 def me(nexus_session: str | None = Cookie(default=None)) -> dict:
     user = current_user(nexus_session)
     return {"id": user.id, "email": user.email, "name": user.name, "email_verified": user.email_verified, "workspace_id": user.workspace_id}
+
+
+@router.post("/password-reset/request")
+def password_reset_request(payload: PasswordResetRequest) -> dict:
+    token = store.request_password_reset(payload.email)
+    result = {"accepted": True}
+    if os.getenv("NEXUS_EXPOSE_DEV_TOKENS", "false").lower() == "true":
+        result["reset_token"] = token
+    return result
+
+
+@router.post("/password-reset/confirm")
+def password_reset_confirm(payload: PasswordResetConfirm) -> dict:
+    try:
+        store.reset_password(payload.token, payload.password)
+    except AuthError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"password_reset": True}
 
 
 @router.post("/workspace", status_code=201)
