@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 
+from app.confirmation import ConfirmationRequiredError, ConfirmationSet
 from app.models import ToolExecutionRequest, ToolExecutionResponse
 from app.permissions import PermissionDeniedError
 from app.tools import ToolArgumentError
@@ -18,14 +19,21 @@ async def execute_tool(
     payload: ToolExecutionRequest,
     request: Request,
 ) -> ToolExecutionResponse:
+    confirmations = ConfirmationSet(
+        frozenset({payload.confirmation_id}) if payload.confirmed and payload.confirmation_id else frozenset()
+    )
     try:
         result = await request.app.state.container.tools.execute(
             tool_name,
             payload.arguments,
             subject_id=payload.subject_id,
+            confirmations=confirmations,
+            call_id=payload.confirmation_id,
         )
     except PermissionDeniedError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ConfirmationRequiredError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ToolArgumentError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except KeyError as exc:
