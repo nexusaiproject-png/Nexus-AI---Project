@@ -1,14 +1,16 @@
 from typing import Any
 
-from app.developer_agent import DeveloperWorkspace, parse_repo
+from app.developer_agent import DeveloperWorkspace, parse_repo, validate_repo_path
 from app.schemas import (
     DeveloperBranchArguments,
     DeveloperCreateIssueArguments,
+    DeveloperCreatePullRequestArguments,
     DeveloperGetIssueArguments,
     DeveloperGetPullRequestArguments,
     DeveloperListBranchesArguments,
     DeveloperListCommitsArguments,
     DeveloperListIssuesArguments,
+    DeveloperListPullRequestFilesArguments,
     DeveloperListPullRequestsArguments,
     DeveloperReadFileArguments,
     DeveloperRepositoryArguments,
@@ -31,9 +33,12 @@ class DeveloperToolFactory:
             ToolDefinition("developer.get_issue", "Get a repository issue.", self.get_issue, DeveloperGetIssueArguments),
             ToolDefinition("developer.list_pull_requests", "List repository pull requests by state.", self.list_pull_requests, DeveloperListPullRequestsArguments),
             ToolDefinition("developer.get_pull_request", "Get a repository pull request.", self.get_pull_request, DeveloperGetPullRequestArguments),
+            ToolDefinition("developer.get_pull_request_diff", "Inspect a pull request diff.", self.get_pull_request_diff, DeveloperGetPullRequestArguments),
+            ToolDefinition("developer.list_pull_request_files", "List files changed by a pull request.", self.list_pull_request_files, DeveloperListPullRequestFilesArguments),
             ToolDefinition("developer.create_issue", "Create a repository issue.", self.create_issue, DeveloperCreateIssueArguments, True),
             ToolDefinition("developer.create_branch", "Create a repository branch from a base ref.", self.create_branch, DeveloperBranchArguments, True),
             ToolDefinition("developer.update_file", "Update repository file contents using the current blob SHA.", self.update_file, DeveloperUpdateFileArguments, True),
+            ToolDefinition("developer.create_pull_request", "Create a pull request from a branch to a base branch.", self.create_pull_request, DeveloperCreatePullRequestArguments, True),
         )
 
     @staticmethod
@@ -54,7 +59,7 @@ class DeveloperToolFactory:
 
     async def read_file(self, a: dict[str, Any]) -> Any:
         r = self._repo(a)
-        return await self._workspace.read_file(r.owner, r.name, a["path"], a.get("ref"))
+        return await self._workspace.read_file(r.owner, r.name, validate_repo_path(a["path"]), a.get("ref"))
 
     async def list_issues(self, a: dict[str, Any]) -> Any:
         r = self._repo(a)
@@ -72,14 +77,26 @@ class DeveloperToolFactory:
         r = self._repo(a)
         return await self._workspace.get_pull_request(r.owner, r.name, a["number"])
 
+    async def get_pull_request_diff(self, a: dict[str, Any]) -> Any:
+        r = self._repo(a)
+        return await self._workspace.get_pull_request_diff(r.owner, r.name, a["number"])
+
+    async def list_pull_request_files(self, a: dict[str, Any]) -> Any:
+        r = self._repo(a)
+        return await self._workspace.list_pull_request_files(r.owner, r.name, a["number"])
+
     async def create_issue(self, a: dict[str, Any]) -> Any:
         r = self._repo(a)
         return await self._workspace.create_issue(r.owner, r.name, a["title"], a.get("body"))
 
     async def create_branch(self, a: dict[str, Any]) -> Any:
-        r = self._repo(a)
+        r = self._repo
         return await self._workspace.create_branch(r.owner, r.name, a["branch"], a["base"])
 
     async def update_file(self, a: dict[str, Any]) -> Any:
         r = self._repo(a)
-        return await self._workspace.update_file(r.owner, r.name, a["path"], a["content"], a["sha"], a.get("branch"))
+        return await self._workspace.update_file(r.owner, r.name, validate_repo_path(a["path"]), a["content"], a["sha"], a.get("branch"))
+
+    async def create_pull_request(self, a: dict[str, Any]) -> Any:
+        r = self._repo(a)
+        return await self._workspace.create_pull_request(r.owner, r.name, a["title"], a["head"], a["base"], a.get("body"))
