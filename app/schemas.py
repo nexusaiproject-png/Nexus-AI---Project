@@ -124,3 +124,43 @@ class MeetingUpdateArguments(BaseModel):
 class MeetingDeleteArguments(BaseModel):
     subject_id: str = Field(min_length=1)
     meeting_id: str = Field(min_length=1)
+
+class DeveloperRepositoryArguments(BaseModel):
+    subject_id: str = Field(min_length=1)
+    repository: str = Field(min_length=3)
+
+class DeveloperListBranchesArguments(DeveloperRepositoryArguments):
+    pass
+
+class DeveloperListCommitsArguments(DeveloperRepositoryArguments):
+    branch: str | None = None
+
+class DeveloperReadFileArguments(DeveloperRepositoryArguments):
+    path: str = Field(min_length=1, max_length=1000)
+    ref: str | None = None
+
+class DeveloperListIssuesArguments(DeveloperRepositoryArguments):
+    state: str = Field(default="open", pattern="^(open|closed|all)$")
+
+class DeveloperGetIssueArguments(DeveloperRepositoryArguments):
+    number: int = Field(ge=1)
+
+class DeveloperListPullRequestsArguments(DeveloperRepositoryArguments):
+    state: str = Field(default="open", pattern="^(open|closed|all)$")
+
+class DeveloperGetPullRequestArguments(DeveloperRepositoryArguments):
+    number: int = Field(ge=1)
+
+class DeveloperCreateIssueArguments(DeveloperRepositoryArguments):
+    title: str = Field(min_length=1, max_length=300)
+    body: str | None = Field(default=None, max_length=10000)
+
+class DeveloperBranchArguments(DeveloperRepositoryArguments):
+    branch: str = Field(min_length=1, max_length=200)
+    base: str = Field(min_length=1, max_length=200)
+
+class DeveloperUpdateFileArguments(DeveloperRepositoryArguments):
+    path: str = Field(min_length=1, max_length=1000)
+    content: str = ""
+    sha: str = Field(min_length=1)
+    branch: str | None = None
