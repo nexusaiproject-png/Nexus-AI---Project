@@ -1,7 +1,6 @@
 import pytest
 
 from app.agent import Agent, ModelResponse, ToolCall
-from app.confirmation import ConfirmationRequiredError
 from app.permissions import AllowListPermissionChecker
 from app.tools import ToolDefinition, ToolRegistry
 
