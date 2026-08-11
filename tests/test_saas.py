@@ -15,6 +15,7 @@ def setup_workspace() -> tuple[SaaSStore, str, str, str]:
 def test_workspace_isolated_by_membership() -> None:
     store, owner_id, member_id, outsider_id = setup_workspace()
     workspace = next(iter(store.workspaces.values()))
+    store.set_plan(workspace.id, owner_id, Plan.PRO)
     store.add_member(workspace.id, owner_id, member_id)
 
     assert store.membership(workspace.id, member_id).role is Role.MEMBER
@@ -37,6 +38,7 @@ def test_owner_can_change_plan_and_entitlements_follow_plan() -> None:
 def test_non_owner_cannot_change_plan() -> None:
     store, owner_id, member_id, _ = setup_workspace()
     workspace = next(iter(store.workspaces.values()))
+    store.set_plan(workspace.id, owner_id, Plan.PRO)
     store.add_member(workspace.id, owner_id, member_id)
 
     with pytest.raises(TenantAccessError):
@@ -46,10 +48,11 @@ def test_non_owner_cannot_change_plan() -> None:
 def test_usage_is_enforced_per_workspace_plan() -> None:
     store, owner_id, member_id, _ = setup_workspace()
     workspace = next(iter(store.workspaces.values()))
+    store.set_plan(workspace.id, owner_id, Plan.PRO)
     store.add_member(workspace.id, owner_id, member_id)
 
-    store.record_usage(workspace.id, member_id, ai_requests=100)
-    assert store.usage[workspace.id].ai_requests == 100
+    store.record_usage(workspace.id, member_id, ai_requests=5_000)
+    assert store.usage[workspace.id].ai_requests == 5_000
 
     with pytest.raises(ValueError, match="ai_requests usage limit exceeded"):
         store.record_usage(workspace.id, member_id, ai_requests=1)
