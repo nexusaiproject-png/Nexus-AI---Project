@@ -40,7 +40,15 @@ def test_tool_router_lists_tools(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.json() == {
-        "tools": ["gmail.get_message", "gmail.list_messages"]
+        "tools": [
+            "calendar.create_event",
+            "calendar.delete_event",
+            "calendar.get_event",
+            "calendar.list_events",
+            "calendar.update_event",
+            "gmail.get_message",
+            "gmail.list_messages",
+        ]
     }
 
 
