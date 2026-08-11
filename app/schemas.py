@@ -76,3 +76,29 @@ class TaskUpdateArguments(BaseModel):
 class TaskDeleteArguments(BaseModel):
     subject_id: str = Field(min_length=1)
     task_id: str = Field(min_length=1)
+
+
+class FileCreateArguments(BaseModel):
+    subject_id: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=500)
+    content: str = ""
+
+
+class FileListArguments(BaseModel):
+    subject_id: str = Field(min_length=1)
+
+
+class FileReadArguments(BaseModel):
+    subject_id: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=500)
+
+
+class FileUpdateArguments(BaseModel):
+    subject_id: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=500)
+    content: str = ""
+
+
+class FileDeleteArguments(BaseModel):
+    subject_id: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=500)
