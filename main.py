@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api import router as tools_router
+from app.automation_api import router as automation_router
 from app.container import build_container
 from app.errors import (
     permission_denied_handler,
@@ -30,6 +31,7 @@ app.add_exception_handler(PermissionDeniedError, permission_denied_handler)
 app.add_exception_handler(KeyError, tool_not_found_handler)
 app.add_exception_handler(ToolArgumentError, tool_argument_error_handler)
 app.include_router(tools_router)
+app.include_router(automation_router)
 
 
 @app.get("/", tags=["system"])
