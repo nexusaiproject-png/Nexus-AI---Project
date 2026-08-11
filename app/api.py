@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 
+from app.confirmation import ConfirmationRequiredError
 from app.models import ToolExecutionRequest, ToolExecutionResponse
 from app.permissions import PermissionDeniedError
 from app.tools import ToolArgumentError
@@ -23,9 +24,13 @@ async def execute_tool(
             tool_name,
             payload.arguments,
             subject_id=payload.subject_id,
+            confirmed=payload.confirmed,
+            call_id=payload.confirmation_id,
         )
     except PermissionDeniedError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except ConfirmationRequiredError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ToolArgumentError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except KeyError as exc:
