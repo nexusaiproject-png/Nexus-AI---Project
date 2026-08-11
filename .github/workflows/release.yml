@@ -1,0 +1,38 @@
+name: Release Beta
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  beta:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        run: docker build --pull --tag nexus-ai:beta .
+
+      - name: Push beta image
+        if: github.event_name == 'push'
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          docker tag nexus-ai:beta "$IMAGE:${GITHUB_REF_NAME}"
+          docker tag nexus-ai:beta "$IMAGE:beta"
+          docker push "$IMAGE:${GITHUB_REF_NAME}"
+          docker push "$IMAGE:beta"
