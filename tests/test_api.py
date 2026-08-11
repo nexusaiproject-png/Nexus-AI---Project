@@ -96,6 +96,41 @@ def test_unknown_tool_returns_404() -> None:
     assert response.status_code == 404
 
 
+def test_sensitive_tool_requires_confirmation_at_http_boundary() -> None:
+    executed: list[dict[str, object]] = []
+    registry = ToolRegistry()
+
+    async def delete(arguments):
+        executed.append(arguments)
+        return {"deleted": True}
+
+    registry.register(ToolDefinition("delete", "Delete data", delete, requires_confirmation=True))
+    test_app = FastAPI()
+    test_app.state.container = AppContainer(tools=registry)
+    test_app.include_router(router)
+
+    with TestClient(test_app) as client:
+        pending = client.post(
+            "/tools/delete/execute",
+            json={"subject_id": "account-1", "arguments": {"id": "123"}, "confirmation_id": "call-1"},
+        )
+        confirmed = client.post(
+            "/tools/delete/execute",
+            json={
+                "subject_id": "account-1",
+                "arguments": {"id": "123"},
+                "confirmation_id": "call-1",
+                "confirmed": True,
+            },
+        )
+
+    assert pending.status_code == 409
+    assert "confirmation required" in pending.json()["detail"]
+    assert confirmed.status_code == 200
+    assert confirmed.json() == {"result": {"deleted": True}}
+    assert executed == [{"id": "123"}]
+
+
 def test_unexpected_tool_failure_returns_502() -> None:
     registry = ToolRegistry()
 
