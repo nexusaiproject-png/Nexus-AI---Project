@@ -3,6 +3,7 @@ from typing import Any, Awaitable, Callable
 
 from pydantic import BaseModel, ValidationError
 
+from app.confirmation import ConfirmationRequiredError, ConfirmationSet, confirmation_id
 from app.permissions import PermissionChecker, PermissionDeniedError
 
 
@@ -19,6 +20,7 @@ class ToolDefinition:
     description: str
     handler: ToolHandler
     arguments_model: type[BaseModel] | None = None
+    requires_confirmation: bool = False
 
 
 class ToolRegistry:
@@ -47,6 +49,8 @@ class ToolRegistry:
         name: str,
         arguments: dict[str, Any],
         subject_id: str | None = None,
+        confirmations: ConfirmationSet | None = None,
+        call_id: str | None = None,
     ) -> Any:
         if self._permission_checker is not None:
             if subject_id is None:
@@ -55,6 +59,11 @@ class ToolRegistry:
                 raise PermissionDeniedError(f"permission denied: {name}")
 
         tool = self.get(name)
+        if tool.requires_confirmation:
+            confirmation_key = confirmation_id(name, call_id)
+            if confirmations is None or not confirmations.allows(confirmation_key):
+                raise ConfirmationRequiredError(name, confirmation_key)
+
         if tool.arguments_model is not None:
             try:
                 arguments = tool.arguments_model.model_validate(arguments).model_dump()
