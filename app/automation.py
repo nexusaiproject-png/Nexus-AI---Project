@@ -57,6 +57,11 @@ class AutomationStore:
     def create(self, automation: Automation) -> Automation:
         if automation.id in self._items:
             raise AutomationError(f"automation already exists: {automation.id}")
+        if not automation.name.strip():
+            raise AutomationError("automation name is required")
+        if not automation.actions:
+            raise AutomationError("automation must contain at least one action")
+        self._validate_trigger(automation.trigger)
         self._items[automation.id] = automation
         return automation
 
@@ -71,6 +76,12 @@ class AutomationStore:
 
     def update(self, automation_id: str, subject_id: str, **changes: Any) -> Automation:
         item = self.get(automation_id, subject_id)
+        if "name" in changes and changes["name"] is not None and not str(changes["name"]).strip():
+            raise AutomationError("automation name is required")
+        if "trigger" in changes and changes["trigger"] is not None:
+            self._validate_trigger(changes["trigger"])
+        if "actions" in changes and changes["actions"] is not None and not changes["actions"]:
+            raise AutomationError("automation must contain at least one action")
         for key, value in changes.items():
             if value is not None and hasattr(item, key):
                 setattr(item, key, value)
@@ -80,6 +91,30 @@ class AutomationStore:
     def delete(self, automation_id: str, subject_id: str) -> None:
         self.get(automation_id, subject_id)
         del self._items[automation_id]
+
+    @staticmethod
+    def _validate_trigger(trigger: AutomationTrigger) -> None:
+        if trigger.kind not in {"event", "schedule"}:
+            raise AutomationError(f"unsupported trigger kind: {trigger.kind}")
+        if trigger.kind == "schedule":
+            at = trigger.config.get("at")
+            if not isinstance(at, str):
+                raise AutomationError("schedule trigger requires an ISO-8601 'at'")
+            try:
+                datetime.fromisoformat(at.replace("Z", "+00:00"))
+            except ValueError as exc:
+                raise AutomationError("schedule trigger 'at' must be ISO-8601") from exc
+
+    def due(self, subject_id: str, now: datetime | None = None) -> tuple[Automation, ...]:
+        current = now or datetime.now(timezone.utc)
+        result: list[Automation] = []
+        for item in self.list(subject_id):
+            if not item.enabled or item.trigger.kind != "schedule":
+                continue
+            at = datetime.fromisoformat(item.trigger.config["at"].replace("Z", "+00:00"))
+            if at <= current:
+                result.append(item)
+        return tuple(result)
 
 
 class ConditionEvaluator:
@@ -136,6 +171,17 @@ class AutomationRunner:
         for automation in self.store.list(subject_id):
             if automation.trigger.kind == trigger.kind and automation.trigger.config == trigger.config:
                 results[automation.id] = await self.run(automation.id, subject_id, event, confirmations)
+        return results
+
+    async def run_due(self, subject_id: str, now: datetime | None = None, confirmations: ConfirmationSet | None = None) -> dict[str, list[Any]]:
+        results: dict[str, list[Any]] = {}
+        for automation in self.store.due(subject_id, now):
+            results[automation.id] = await self.run(
+                automation.id,
+                subject_id,
+                {"scheduled_at": automation.trigger.config["at"]},
+                confirmations,
+            )
         return results
 
 
