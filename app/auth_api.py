@@ -86,7 +86,7 @@ def login(payload: LoginRequest, response: Response) -> dict:
     except AuthError as exc:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
     token = store.create_session(user.id)
-    secure = os.getenv("NEXUS_COOKIE_SECURE", "true").lower() == "true"
+    secure = os.getenv("NEXUS_COOKIE_SECURE", "false").lower() == "true"
     response.set_cookie("nexus_session", token, httponly=True, secure=secure, samesite="lax", max_age=86_400)
     return {"user_id": user.id, "email": user.email, "workspace_id": user.workspace_id}
 
