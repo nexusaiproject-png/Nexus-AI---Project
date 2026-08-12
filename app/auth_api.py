@@ -68,7 +68,6 @@ def signup(payload: SignupRequest) -> dict:
     try:
         send_verification_email(user.email, user.name, token)
     except EmailDeliveryError as exc:
-        # Do not leave an account silently unusable if email delivery is misconfigured.
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     result = {"user_id": user.id, "email": user.email, "verification_required": True}
     if os.getenv("NEXUS_EXPOSE_DEV_TOKENS", "false").lower() == "true":
@@ -113,20 +112,18 @@ def me(nexus_session: str | None = Cookie(default=None)) -> dict:
 
 @router.post("/password-reset/request")
 def password_reset_request(payload: PasswordResetRequest) -> dict:
-    token = store.request_password_reset(payload.email)
-    # Keep the response deliberately generic to avoid account enumeration.
-    try:
-        user = store.get_user_by_session("")
-        # Delivery is handled below through a direct lookup only when the store supports it.
-        # In environments without a matching user, the same generic response is returned.
-        if user:
+    user = store.get_user_by_email(payload.email)
+    if user:
+        token = store.request_password_reset(payload.email)
+        try:
             send_password_reset_email(user.email, user.name, token)
-    except EmailDeliveryError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
-    result = {"accepted": True}
-    if os.getenv("NEXUS_EXPOSE_DEV_TOKENS", "false").lower() == "true":
-        result["reset_token"] = token
-    return result
+        except EmailDeliveryError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        result = {"accepted": True}
+        if os.getenv("NEXUS_EXPOSE_DEV_TOKENS", "false").lower() == "true":
+            result["reset_token"] = token
+        return result
+    return {"accepted": True}
 
 
 @router.post("/password-reset/confirm")
