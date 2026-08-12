@@ -11,7 +11,8 @@ _STYLE = """
 *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 80% 0,#17203a 0,#080b12 45%)}
 .card{width:min(460px,100%);background:#101622e8;border:1px solid #202a3d;border-radius:20px;padding:28px;box-shadow:0 20px 70px #0007}
 h1{margin:0 0 8px;font-size:28px}.sub{margin:0 0 24px;color:#8995aa}.brand{font-weight:800;letter-spacing:.04em;margin-bottom:22px}
-label{display:block;font-size:13px;color:#aeb8c9;margin:14px 0 6px}input{width:100%;padding:12px 13px;border:1px solid #2a3449;border-radius:10px;background:#0c111b;color:#fff;outline:none}input:focus{border-color:#5d7cff}
+label{display:block;font-size:13px;color:#aeb8c9;margin:14px 0 6px}.password-wrap{position:relative}.password-wrap input{padding-right:46px}input{width:100%;padding:12px 13px;border:1px solid #2a3449;border-radius:10px;background:#0c111b;color:#fff;outline:none}input:focus{border-color:#5d7cff}
+.password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:34px;height:34px;margin:0;padding:0;border:0;background:transparent;color:#8995aa;cursor:pointer;font-size:17px;display:grid;place-items:center}.password-toggle:hover{color:#fff}.password-toggle:focus-visible{outline:2px solid #5d7cff;border-radius:6px}
 button{width:100%;margin-top:18px;border:0;border-radius:11px;padding:12px;background:#5d7cff;color:#fff;font-weight:700;cursor:pointer}.link{display:block;text-align:center;margin-top:16px;color:#9fb8ff;text-decoration:none}.status{min-height:22px;margin-top:14px;font-size:13px;color:#ff9d9d}.success{color:#8fe0ad}.hidden{display:none}
 """
 
@@ -22,23 +23,38 @@ def _page(title: str, body: str, script: str) -> HTMLResponse:
     )
 
 
+_PASSWORD_FIELD = """<div class='password-wrap'><input id='password' name='password' type='password' minlength='8' autocomplete='new-password' required><button type='button' class='password-toggle' aria-label='Show password' aria-pressed='false' data-password-toggle>◉</button></div>"""
+
+_PASSWORD_SCRIPT = """
+document.querySelectorAll('[data-password-toggle]').forEach(toggle=>{
+  toggle.addEventListener('click',()=>{
+    const input=toggle.parentElement.querySelector('input');
+    const visible=input.type==='text'; input.type=visible?'password':'text';
+    toggle.setAttribute('aria-pressed',String(!visible));
+    toggle.setAttribute('aria-label',visible?'Show password':'Hide password');
+    toggle.textContent=visible?'◉':'◌';
+  });
+});
+"""
+
+
 @router.get("/signup", response_class=HTMLResponse, include_in_schema=False)
 def signup_page() -> HTMLResponse:
-    body = """
+    body = f"""
 <h1>Create your account</h1><p class='sub'>Start your Nexus AI workspace.</p>
 <form id='signup-form'>
 <label for='name'>Name</label><input id='name' name='name' autocomplete='name' required>
 <label for='email'>Email</label><input id='email' name='email' type='email' autocomplete='email' required>
-<label for='password'>Password</label><input id='password' name='password' type='password' minlength='8' autocomplete='new-password' required>
-<button>Create account</button><p id='status' class='status' role='status'></p>
+<label for='password'>Password</label>{_PASSWORD_FIELD}
+<button type='submit'>Create account</button><p id='status' class='status' role='status'></p>
 </form><a class='link' href='/login'>Already have an account? Sign in</a>
 """
-    script = """
+    script = _PASSWORD_SCRIPT + """
 const form=document.getElementById('signup-form'),status=document.getElementById('status');
 form.onsubmit=async e=>{e.preventDefault();status.className='status';status.textContent='Creating your account…';
 const payload={name:document.getElementById('name').value.trim(),email:document.getElementById('email').value.trim(),password:document.getElementById('password').value};
 try{const r=await fetch('/auth/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});const d=await r.json();
-if(!r.ok){status.textContent=d.detail||'Sign up failed.';return}status.className='status success';status.textContent='Account created. Check your email to verify your address, then sign in.';form.querySelector('button').disabled=true;}
+if(!r.ok){status.textContent=d.detail||'Sign up failed.';return}status.className='status success';status.textContent='Account created. Check your email to verify your address, then sign in.';form.querySelector('button[type="submit"]').disabled=true;}
 catch(_){status.textContent='Unable to reach Nexus AI. Please try again.'}};
 """
     return _page("Create account · Nexus AI", body, script)
@@ -46,15 +62,15 @@ catch(_){status.textContent='Unable to reach Nexus AI. Please try again.'}};
 
 @router.get("/login", response_class=HTMLResponse, include_in_schema=False)
 def login_page() -> HTMLResponse:
-    body = """
+    body = f"""
 <h1>Welcome back</h1><p class='sub'>Sign in to your Nexus AI workspace.</p>
 <form id='login-form'>
 <label for='email'>Email</label><input id='email' name='email' type='email' autocomplete='email' required>
-<label for='password'>Password</label><input id='password' name='password' type='password' autocomplete='current-password' required>
-<button>Sign in</button><p id='status' class='status' role='status'></p>
+<label for='password'>Password</label>{_PASSWORD_FIELD.replace("autocomplete='new-password'", "autocomplete='current-password'")}
+<button type='submit'>Sign in</button><p id='status' class='status' role='status'></p>
 </form><a class='link' href='/forgot-password'>Forgot your password?</a><a class='link' href='/signup'>Create an account</a>
 """
-    script = """
+    script = _PASSWORD_SCRIPT + """
 const form=document.getElementById('login-form'),status=document.getElementById('status');
 form.onsubmit=async e=>{e.preventDefault();status.className='status';status.textContent='Signing in…';
 const payload={email:document.getElementById('email').value.trim(),password:document.getElementById('password').value};
@@ -70,7 +86,7 @@ def forgot_password_page() -> HTMLResponse:
     body = """
 <h1>Reset your password</h1><p class='sub'>Enter your email and we will send a reset link if the account exists.</p>
 <form id='forgot-form'><label for='email'>Email</label><input id='email' type='email' autocomplete='email' required>
-<button>Send reset email</button><p id='status' class='status' role='status'></p></form><a class='link' href='/login'>Back to sign in</a>
+<button type='submit'>Send reset email</button><p id='status' class='status' role='status'></p></form><a class='link' href='/login'>Back to sign in</a>
 """
     script = """
 const form=document.getElementById('forgot-form'),status=document.getElementById('status');
@@ -101,14 +117,15 @@ catch(_){{status.textContent='Unable to reach Nexus AI. Please try again.';butto
 @router.get("/reset-password", response_class=HTMLResponse, include_in_schema=False)
 def reset_password_page(token: str = Query(default="")) -> HTMLResponse:
     safe = token.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+    body = "<h1>Choose a new password</h1><p class='sub'>Your new password must be at least 8 characters.</p><form id='reset-form'><label for='password'>New password</label>" + _PASSWORD_FIELD + "<button type='submit'>Reset password</button><p id='status' class='status' role='status'></p></form><a class='link' href='/login'>Back to sign in</a>"
     return _page(
         "Reset password · Nexus AI",
-        "<h1>Choose a new password</h1><p class='sub'>Your new password must be at least 8 characters.</p><form id='reset-form'><label for='password'>New password</label><input id='password' type='password' minlength='8' autocomplete='new-password' required><button>Reset password</button><p id='status' class='status' role='status'></p></form><a class='link' href='/login'>Back to sign in</a>",
-        f"""
+        body,
+        _PASSWORD_SCRIPT + f"""
 const token={safe!r},form=document.getElementById('reset-form'),status=document.getElementById('status');
 form.onsubmit=async e=>{{e.preventDefault();status.textContent='Resetting…';
 try{{const r=await fetch('/auth/password-reset/confirm',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{token,password:document.getElementById('password').value}})}});const d=await r.json();
-if(!r.ok){{status.textContent=d.detail||'Reset failed.';return}}status.className='status success';status.textContent='Password reset successfully. You can now sign in.';form.querySelector('button').disabled=true;}}
+if(!r.ok){{status.textContent=d.detail||'Reset failed.';return}}status.className='status success';status.textContent='Password reset successfully. You can now sign in.';form.querySelector('button[type="submit"]').disabled=true;}}
 catch(_){{status.textContent='Unable to reach Nexus AI. Please try again.';}}}};
 """,
     )
