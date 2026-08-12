@@ -113,6 +113,16 @@ class AuthStore:
         finally:
             conn.close()
 
+    def get_user_by_email(self, email: str) -> User | None:
+        conn = self._connect()
+        try:
+            row = conn.execute("SELECT * FROM users WHERE email=?", (self._normalize_email(email),)).fetchone()
+            if not row:
+                return None
+            return User(row["id"], row["email"], row["name"], bool(row["email_verified"]), self._workspace_id(conn, row["id"]))
+        finally:
+            conn.close()
+
     def verify_email(self, token: str) -> User:
         conn = self._connect()
         try:
