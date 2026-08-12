@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 
 from app.admin import router as admin_router
 from app.api import router as tools_router
@@ -51,9 +52,9 @@ app.include_router(admin_router)
 app.include_router(revenue_router)
 
 
-@app.get("/", tags=["system"])
-async def root() -> dict[str, str]:
-    return {"message": "Nexus AI Backend is running"}
+@app.get("/", tags=["system"], include_in_schema=False)
+async def root() -> RedirectResponse:
+    return RedirectResponse(url="/ui", status_code=307)
 
 
 @app.get("/hello", tags=["system"])
