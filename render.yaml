@@ -19,6 +19,8 @@ services:
           name: nexus-ai-db
           property: connectionString
       - fromGroup: nexus-ai-production
+      - key: EMAIL_FROM
+        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: STRIPE_SECRET_KEY
@@ -35,8 +37,6 @@ envVarGroups:
     envVars:
       - key: NEXUS_PUBLIC_URL
         value: https://nexus-ai-bbm7.onrender.com
-      - key: EMAIL_FROM
-        sync: false
 
 databases:
   - name: nexus-ai-db
