@@ -18,11 +18,8 @@ services:
         fromDatabase:
           name: nexus-ai-db
           property: connectionString
-      - key: NEXUS_PUBLIC_URL
-        sync: false
+      - fromGroup: nexus-ai-production
       - key: RESEND_API_KEY
-        sync: false
-      - key: EMAIL_FROM
         sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
@@ -31,6 +28,14 @@ services:
       - key: STRIPE_PRICE_PRO
         sync: false
       - key: STRIPE_PRICE_TEAM
+        sync: false
+
+envVarGroups:
+  - name: nexus-ai-production
+    envVars:
+      - key: NEXUS_PUBLIC_URL
+        value: https://nexus-ai-bbm7.onrender.com
+      - key: EMAIL_FROM
         sync: false
 
 databases:
