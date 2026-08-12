@@ -7,9 +7,9 @@ client = TestClient(app)
 
 
 def test_root() -> None:
-    response = client.get("/")
-    assert response.status_code == 200
-    assert response.json() == {"message": "Nexus AI Backend is running"}
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/ui"
 
 
 def test_hello() -> None:
