@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: nexus-ai
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: NEXUS_ENV
+        value: production
+      - key: NEXUS_LOG_LEVEL
+        value: INFO
+      - key: NEXUS_COOKIE_SECURE
+        value: "true"
+      - key: NEXUS_EXPOSE_DEV_TOKENS
+        value: "false"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nexus-ai-db
+          property: connectionString
+      - key: NEXUS_PUBLIC_URL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PRO
+        sync: false
+      - key: STRIPE_PRICE_TEAM
+        sync: false
+
+databases:
+  - name: nexus-ai-db
+    plan: free
+    region: frankfurt
