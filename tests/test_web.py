@@ -16,5 +16,7 @@ def test_web_interface_is_available_and_responsive() -> None:
 
 def test_web_interface_preserves_backend_endpoints() -> None:
     with TestClient(app) as client:
-        assert client.get("/").json()["message"] == "Nexus AI Backend is running"
+        root = client.get("/", follow_redirects=False)
+        assert root.status_code == 307
+        assert root.headers["location"] == "/ui"
         assert client.get("/health").json()["status"] == "ok"
