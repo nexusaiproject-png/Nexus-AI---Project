@@ -65,6 +65,8 @@ def signup(payload: SignupRequest) -> dict:
     except AuthError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     result = {"user_id": user.id, "email": user.email, "verification_required": True}
+    # Development/test environments can explicitly expose the verification token.
+    # Production should keep this disabled and deliver the token through email.
     if os.getenv("NEXUS_EXPOSE_DEV_TOKENS", "false").lower() == "true":
         result["verification_token"] = token
     return result
