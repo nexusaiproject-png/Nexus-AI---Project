@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from app.admin import router as admin_router
 from app.api import router as tools_router
 from app.auth_api import router as auth_router
+from app.auth_pages import router as auth_pages_router
 from app.automation_api import router as automation_router
 from app.billing import router as billing_router
 from app.container import build_container
@@ -41,6 +42,7 @@ app.add_exception_handler(ToolArgumentError, tool_argument_error_handler)
 app.include_router(tools_router)
 app.include_router(automation_router)
 app.include_router(auth_router)
+app.include_router(auth_pages_router)
 app.include_router(billing_router)
 app.include_router(usage_router)
 app.include_router(dashboard_router)
